@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — Travel Marketing Hub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="admin-page">
+
+  <!-- ── Header ───────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Travel Marketing Hub" class="header-logo" onerror="this.style.display='none';document.getElementById('header-wordmark').style.display='block';" />
+      <span id="header-wordmark" class="header-wordmark" style="display:none;">Travel Marketing Hub</span>
+      <nav class="header-nav">
+        <span class="header-greeting admin-badge">Admin Panel</span>
+        <a href="{{ url_for('admin_logout') }}" class="btn btn-ghost btn-sm">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Admin hero ────────────────────────────────────────── -->
+  <section class="admin-hero">
+    <div class="hero-inner">
+      <h1 class="hero-heading" style="font-size:1.6rem;">Content Hub Admin</h1>
+      <p class="hero-sub">Manage customers, destinations and access rights.</p>
+    </div>
+  </section>
+
+  <!-- ── Toast notification ────────────────────────────────── -->
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <!-- ── Main admin area ───────────────────────────────────── -->
+  <main class="admin-main">
+    <div class="admin-inner">
+
+      <!-- Tab nav -->
+      <div class="tab-nav">
+        <button class="tab-btn tab-btn--active" onclick="switchTab('customers')" id="tab-customers">Customers</button>
+        <button class="tab-btn" onclick="switchTab('destinations')" id="tab-destinations">Destinations</button>
+        <button class="tab-btn" onclick="switchTab('assign')" id="tab-assign">Assign &amp; Links</button>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           TAB 1: Customers
+      ══════════════════════════════════════════════ -->
+      <div id="panel-customers" class="tab-panel tab-panel--active">
+
+        <div class="panel-section">
+          <h2 class="panel-title">Add New Customer</h2>
+          <form class="admin-form" onsubmit="addCustomer(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Full name</label>
+                <input type="text" id="new-cust-name" placeholder="Sarah Jenkins" required />
+              </div>
+              <div class="form-group">
+                <label>Email address</label>
+                <input type="email" id="new-cust-email" placeholder="sarah@example.com" required />
+              </div>
+              <div class="form-group">
+                <label>Initial password</label>
+                <input type="text" id="new-cust-password" placeholder="Temporary password" required />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Customer</button>
+          </form>
+        </div>
+
+        <div class="panel-section">
+          <h2 class="panel-title">All Customers</h2>
+          <div id="customers-list" class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Destinations</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="customers-tbody">
+                {% for c in data.customers %}
+                <tr id="cust-row-{{ c.id }}" data-cust-id="{{ c.id }}">
+                  <td>{{ c.name }}</td>
+                  <td>{{ c.email }}</td>
+                  <td>
+                    <span class="dest-count">{{ c.destinations|length }} destination{% if c.destinations|length != 1 %}s{% endif %}</span>
+                  </td>
+                  <td class="actions-cell">
+                    <button class="btn btn-sm btn-outline" onclick="resetPassword('{{ c.id }}', '{{ c.name }}')">Reset password</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteCustomer('{{ c.id }}', '{{ c.name }}')">Delete</button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty-cell">No customers yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /panel-customers -->
+
+
+      <!-- ══════════════════════════════════════════════
+           TAB 2: Destinations
+      ══════════════════════════════════════════════ -->
+      <div id="panel-destinations" class="tab-panel">
+
+        <div class="panel-section">
+          <h2 class="panel-title">Add New Destination</h2>
+          <form class="admin-form" onsubmit="addDestination(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Destination name</label>
+                <input type="text" id="new-dest-name" placeholder="Turkey" required />
+              </div>
+              <div class="form-group">
+                <label>Flag emoji</label>
+                <input type="text" id="new-dest-flag" placeholder="🇹🇷" style="max-width:120px;" />
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select id="new-dest-status">
+                  <option value="ready">Ready</option>
+                  <option value="coming_soon">Coming Soon</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Destination</button>
+          </form>
+        </div>
+
+        <div class="panel-section">
+          <h2 class="panel-title">All Destinations</h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Name</th>
+                  <th>ID</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="destinations-tbody">
+                {% for d in data.destinations %}
+                <tr id="dest-row-{{ d.id }}" data-dest-id="{{ d.id }}">
+                  <td>{{ d.flag }}</td>
+                  <td>{{ d.name }}</td>
+                  <td><code class="id-code">{{ d.id }}</code></td>
+                  <td>
+                    <select class="status-select" onchange="updateStatus('{{ d.id }}', this.value)">
+                      <option value="ready" {% if d.status == 'ready' %}selected{% endif %}>Ready</option>
+                      <option value="coming_soon" {% if d.status == 'coming_soon' %}selected{% endif %}>Coming Soon</option>
+                    </select>
+                  </td>
+                  <td class="actions-cell">
+                    <button class="btn btn-sm btn-danger" onclick="deleteDestination('{{ d.id }}', '{{ d.name }}')">Delete</button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty-cell">No destinations yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /panel-destinations -->
+
+
+      <!-- ══════════════════════════════════════════════
+           TAB 3: Assign & Links
+      ══════════════════════════════════════════════ -->
+      <div id="panel-assign" class="tab-panel">
+
+        <div class="panel-section">
+          <h2 class="panel-title">Assign Destinations &amp; Enter Links</h2>
+          <p class="panel-hint">Select a customer to manage their destination access and file links.</p>
+
+          <div class="assign-customer-select">
+            <label for="assign-customer-picker">Customer</label>
+            <select id="assign-customer-picker" onchange="loadAssignPanel(this.value)">
+              <option value="">— Select a customer —</option>
+              {% for c in data.customers %}
+              <option value="{{ c.id }}">{{ c.name }} ({{ c.email }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div id="assign-panel-content" style="display:none;">
+          <!-- Destination rows injected by JS -->
+        </div>
+
+      </div><!-- /panel-assign -->
+
+    </div><!-- /admin-inner -->
+  </main>
+
+  <!-- ── Confirm modal ──────────────────────────────────────── -->
+  <div id="confirm-modal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <p id="confirm-msg" class="modal-msg"></p>
+      <div class="modal-actions">
+        <button class="btn btn-danger" id="confirm-yes">Confirm</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Reset password modal ──────────────────────────────── -->
+  <div id="pw-modal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <p class="modal-msg">Set a new password for <strong id="pw-modal-name"></strong></p>
+      <div class="form-group" style="margin-top:1rem;">
+        <label>New password</label>
+        <input type="text" id="pw-new-value" placeholder="New password" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="submitResetPassword()">Set Password</button>
+        <button class="btn btn-ghost" onclick="closePwModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline data for JS -->
+  <script>
+    const TMH_DATA = {{ data | tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
