@@ -1,66 +1,105 @@
 {
   "admin": {
     "username": "admin",
-    "password_hash": "4e1a8fa6d7b91f72db2a5913b7e204ec80321bccc5ce2de27b29213b2844ef62"
+    "password_hash": "51ba37aa01cf7c50b6a1bb7a4c38a923974ffd1371da1cc51eeeadc4df6c5222"
   },
   "customers": [
     {
       "id": "cust_001",
       "name": "Sarah Jenkins",
       "email": "sarah@example.com",
-      "password_hash": "$2b$12$O9.0NAUP3B3zsZY9kg3G.OYZuKZFsHtvZwEyoWN9C1o3.aOl9ppiG",
-      "destinations": [
-        "dest_turkey",
-        "dest_dubai"
-      ]
+      "password_hash": "835d96d3398c9aa77600a7964e98266723975252c9385f0eb4a0916bf8972cae",
+      "joined_date": "2026-03-20",
+      "notes": "Example customer \u2014 delete when ready"
     },
     {
       "id": "cust_002",
       "name": "Coleman Cruise",
       "email": "contact@thecruiseconcierge.co.uk",
-      "password_hash": "$2b$12$sISRp.2c6aXFDO02qns1uuH8oxG9LyhGz3CvbGC42ws9nMEQTwGFW",
-      "destinations": [
-        "dest_canary_islands"
-      ]
+      "password_hash": "835d96d3398c9aa77600a7964e98266723975252c9385f0eb4a0916bf8972cae",
+      "joined_date": "2026-03-20",
+      "notes": ""
     }
   ],
   "destinations": [
     {
-      "id": "dest_turkey",
-      "name": "Turkey",
-      "flag": "\ud83c\uddf9\ud83c\uddf7",
+      "id": "dest_2026_01",
+      "name": "Barbados",
+      "flag": "\ud83c\udde7\ud83c\udde7",
+      "month": 1,
+      "year": 2026,
       "status": "ready",
       "files": {
-        "blog_docx": "https://drive.google.com/file/d/EXAMPLE_TURKEY_BLOG/view",
-        "social_posts": "https://drive.google.com/file/d/EXAMPLE_TURKEY_SOCIAL/view",
-        "promo_assets": "https://drive.google.com/file/d/EXAMPLE_TURKEY_PROMO/view",
-        "guide_pdf": "https://drive.google.com/file/d/EXAMPLE_TURKEY_GUIDE/view",
-        "images_folder": "https://drive.google.com/drive/folders/EXAMPLE_TURKEY_IMAGES",
-        "canva_guide": "https://www.canva.com/design/EXAMPLE_TURKEY_GUIDE/view",
-        "canva_carousel": "https://www.canva.com/design/EXAMPLE_TURKEY_CAROUSEL/view",
-        "canva_pinterest": "https://www.canva.com/design/EXAMPLE_TURKEY_PINTEREST/view"
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
       }
     },
     {
-      "id": "dest_dubai",
-      "name": "Dubai",
-      "flag": "\ud83c\udde6\ud83c\uddea",
+      "id": "dest_2026_02",
+      "name": "Florida",
+      "flag": "\ud83c\uddfa\ud83c\uddf8",
+      "month": 2,
+      "year": 2026,
       "status": "ready",
       "files": {
-        "blog_docx": "https://drive.google.com/file/d/EXAMPLE_DUBAI_BLOG/view",
-        "social_posts": "https://drive.google.com/file/d/EXAMPLE_DUBAI_SOCIAL/view",
-        "promo_assets": "https://drive.google.com/file/d/EXAMPLE_DUBAI_PROMO/view",
-        "guide_pdf": "https://drive.google.com/file/d/EXAMPLE_DUBAI_GUIDE/view",
-        "images_folder": "https://drive.google.com/drive/folders/EXAMPLE_DUBAI_IMAGES",
-        "canva_guide": "https://www.canva.com/design/EXAMPLE_DUBAI_GUIDE/view",
-        "canva_carousel": "https://www.canva.com/design/EXAMPLE_DUBAI_CAROUSEL/view",
-        "canva_pinterest": "https://www.canva.com/design/EXAMPLE_DUBAI_PINTEREST/view"
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
       }
     },
     {
-      "id": "dest_maldives",
-      "name": "Maldives",
-      "flag": "\ud83c\uddf2\ud83c\uddfb",
+      "id": "dest_2026_03",
+      "name": "Cancun",
+      "flag": "\ud83c\uddf2\ud83c\uddfd",
+      "month": 3,
+      "year": 2026,
+      "status": "ready",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_04",
+      "name": "Prague",
+      "flag": "\ud83c\udde8\ud83c\uddff",
+      "month": 4,
+      "year": 2026,
+      "status": "ready",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_05",
+      "name": "Rome",
+      "flag": "\ud83c\uddee\ud83c\uddf9",
+      "month": 5,
+      "year": 2026,
       "status": "coming_soon",
       "files": {
         "blog_docx": "",
@@ -74,9 +113,119 @@
       }
     },
     {
-      "id": "dest_canary_islands",
+      "id": "dest_2026_06",
       "name": "Canary Islands",
       "flag": "\ud83c\uddee\ud83c\udde8",
+      "month": 6,
+      "year": 2026,
+      "status": "coming_soon",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_07",
+      "name": "Turkey",
+      "flag": "\ud83c\uddf9\ud83c\uddf7",
+      "month": 7,
+      "year": 2026,
+      "status": "coming_soon",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_08",
+      "name": "Greek Islands",
+      "flag": "\ud83c\uddec\ud83c\uddf7",
+      "month": 8,
+      "year": 2026,
+      "status": "coming_soon",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_09",
+      "name": "Portugal",
+      "flag": "\ud83c\uddf5\ud83c\uddf9",
+      "month": 9,
+      "year": 2026,
+      "status": "coming_soon",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_10",
+      "name": "New York",
+      "flag": "\ud83d\uddfd",
+      "month": 10,
+      "year": 2026,
+      "status": "coming_soon",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_11",
+      "name": "Vienna",
+      "flag": "\ud83c\udde6\ud83c\uddf9",
+      "month": 11,
+      "year": 2026,
+      "status": "coming_soon",
+      "files": {
+        "blog_docx": "",
+        "social_posts": "",
+        "promo_assets": "",
+        "guide_pdf": "",
+        "images_folder": "",
+        "canva_guide": "",
+        "canva_carousel": "",
+        "canva_pinterest": ""
+      }
+    },
+    {
+      "id": "dest_2026_12",
+      "name": "Abu Dhabi",
+      "flag": "\ud83c\udde6\ud83c\uddea",
+      "month": 12,
+      "year": 2026,
       "status": "coming_soon",
       "files": {
         "blog_docx": "",

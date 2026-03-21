@@ -380,6 +380,21 @@ a:hover { text-decoration: underline; }
   flex-shrink: 0;
 }
 
+/* Month badge on destination cards */
+.dest-month-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dest-month-badge--current { background: var(--orange); color: #fff; }
+.dest-month-badge--prev    { background: #e5e7eb; color: #6b7280; }
+.dest-month-badge--next    { background: #dbeafe; color: #1d4ed8; }
+
 /* Badges */
 .badge {
   padding: 0.25rem 0.65rem;
@@ -389,9 +404,10 @@ a:hover { text-decoration: underline; }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.badge--new { background: #fef3c7; color: #d97706; }
-.badge--ready { background: #d1fae5; color: #065f46; }
-.badge--soon { background: #e0e7ff; color: #4f46e5; }
+.badge--current { background: #fef3c7; color: #d97706; }
+.badge--prev    { background: #f3f4f6; color: #6b7280; }
+.badge--ready   { background: #d1fae5; color: #065f46; }
+.badge--soon    { background: #e0e7ff; color: #4f46e5; }
 
 /* Chevron */
 .chevron-icon {
@@ -744,18 +760,82 @@ a:hover { text-decoration: underline; }
   background: var(--surface);
   border-radius: var(--radius);
   padding: 2rem;
-  max-width: 420px;
+  max-width: 460px;
   width: 100%;
   box-shadow: var(--shadow-md);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.modal-msg { font-size: 0.95rem; color: var(--text); }
+.modal-box--wide { max-width: 760px; }
+
+.modal-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 1.25rem; }
+.modal-msg   { font-size: 0.95rem; color: var(--text); }
 
 .modal-actions {
   display: flex;
   gap: 0.75rem;
   margin-top: 1.5rem;
 }
+
+.btn-ghost-dark {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px solid var(--border);
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-ghost-dark:hover { background: var(--bg); color: var(--text); }
+
+/* Customer detail modal */
+.cust-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.cust-detail-item--full { grid-column: 1 / -1; }
+.cust-detail-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: block; margin-bottom: 0.2rem; }
+.cust-detail-value { font-size: 0.9rem; color: var(--text); }
+.cust-detail-item textarea { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; font-size: 0.875rem; font-family: var(--font); resize: vertical; }
+.cust-detail-item textarea:focus { outline: none; border-color: var(--teal); }
+
+/* Row highlights in destinations table */
+.row-highlight-current td { background: #fff9eb; }
+.row-highlight-prev td    { background: #f9fafb; }
+.row-highlight-next td    { background: #eff6ff; }
+
+/* Link button (looks like a text link) */
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-family: var(--font);
+  padding: 0;
+  text-decoration: underline;
+}
+.link-btn:hover { color: var(--orange); }
+
+/* Section hint */
+.section-hint { font-size: 0.85rem; color: var(--muted); margin-top: -0.5rem; margin-bottom: 1.25rem; }
+
+/* Change password section on dashboard */
+.change-pw-section {
+  margin-top: 2.5rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+}
+.change-pw-title { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 1rem; }
+.change-pw-form { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 0.75rem; align-items: end; }
+@media (max-width: 700px) { .change-pw-form { grid-template-columns: 1fr; } }
+.cpw-msg { margin-top: 0.75rem; font-size: 0.875rem; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); }
+.cpw-msg--success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.cpw-msg--error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
 /* ── Toast ────────────────────────────────────────────── */
 .toast {
