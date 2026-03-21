@@ -317,6 +317,9 @@ async function saveEditLinks() {
     if (el) body[f] = el.value.trim();
   });
 
+  const btn = document.querySelector("#edit-links-modal .btn-primary");
+  if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+
   try {
     const res  = await fetch(`/admin/api/destinations/${destId}/files`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
@@ -327,9 +330,15 @@ async function saveEditLinks() {
       const dest = TMH_DATA.destinations.find(d => d.id === destId);
       if (dest) Object.assign(dest.files, body);
       closeEditLinks();
-      showToast("Links saved.");
-    } else { showToast(json.error || "Failed.", true); }
-  } catch(e) { showToast("Network error.", true); }
+      showToast("✅ Links saved successfully.");
+    } else {
+      showToast(json.error || "Save failed — please try again.", true);
+    }
+  } catch(e) {
+    showToast("Network error — links not saved.", true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Save Links"; }
+  }
 }
 
 // ─── Admin: change admin password ────────────────────────

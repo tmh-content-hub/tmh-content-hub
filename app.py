@@ -117,24 +117,24 @@ def dashboard():
 
     (prev_m, prev_y), (cur_m, cur_y), (next_m, next_y) = rolling_window()
 
-    window_map = {
-        (prev_m, prev_y): ("Last Month",   "prev"),
-        (cur_m,  cur_y):  ("This Month",   "current"),
-        (next_m, next_y): ("Coming Next",  "next"),
-    }
+    # Order: This Month first, Last Month second, Coming Next third
+    window_slots = [
+        (cur_m,  cur_y,  "This Month",  "current"),
+        (prev_m, prev_y, "Last Month",  "prev"),
+        (next_m, next_y, "Coming Next", "next"),
+    ]
 
     dest_lookup = {(d["month"], d["year"]): d for d in data["destinations"]}
 
     visible = []
-    for (wm, wy), (label, slot) in window_map.items():
+    for (wm, wy, label, slot) in window_slots:
         dest = dest_lookup.get((wm, wy))
         if dest:
             d = dict(dest)
             d["window_label"] = label
-            d["window_slot"] = slot
-            d["month_name"] = MONTH_NAMES[wm - 1]
+            d["window_slot"]  = slot
+            d["month_name"]   = MONTH_NAMES[wm - 1]
         else:
-            # Placeholder for months with no destination configured yet
             d = {
                 "id": f"placeholder_{wy}_{wm:02d}",
                 "name": "Coming Soon",
@@ -144,8 +144,8 @@ def dashboard():
                 "status": "coming_soon",
                 "files": {},
                 "window_label": label,
-                "window_slot": slot,
-                "month_name": MONTH_NAMES[wm - 1],
+                "window_slot":  slot,
+                "month_name":   MONTH_NAMES[wm - 1],
             }
         visible.append(d)
 
