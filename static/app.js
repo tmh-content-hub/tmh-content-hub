@@ -389,10 +389,45 @@ async function saveLinks(custId, destId, destName) {
 // ─── Tab switching ────────────────────────────────────────
 
 function switchTab(name) {
-  ["customers", "destinations", "assign"].forEach(tab => {
+  ["customers", "destinations", "assign", "settings"].forEach(tab => {
     document.getElementById(`tab-${tab}`)?.classList.toggle("tab-btn--active", tab === name);
     document.getElementById(`panel-${tab}`)?.classList.toggle("tab-panel--active", tab === name);
   });
+}
+
+async function changeAdminPassword(e) {
+  e.preventDefault();
+  const current = document.getElementById("admin-pw-current").value;
+  const newPw   = document.getElementById("admin-pw-new").value;
+  const confirm = document.getElementById("admin-pw-confirm").value;
+
+  if (newPw !== confirm) {
+    showToast("New passwords don't match.", true);
+    return;
+  }
+  if (newPw.length < 6) {
+    showToast("New password must be at least 6 characters.", true);
+    return;
+  }
+
+  try {
+    const res = await fetch("/admin/api/admin-password", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_password: current, new_password: newPw })
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast("Admin password updated successfully!");
+      document.getElementById("admin-pw-current").value = "";
+      document.getElementById("admin-pw-new").value = "";
+      document.getElementById("admin-pw-confirm").value = "";
+    } else {
+      showToast(json.error || "Failed to update password.", true);
+    }
+  } catch(e) {
+    showToast("Network error.", true);
+  }
 }
 
 // ─── Utility ─────────────────────────────────────────────

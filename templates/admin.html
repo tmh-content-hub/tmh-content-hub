@@ -40,6 +40,7 @@
         <button class="tab-btn tab-btn--active" onclick="switchTab('customers')" id="tab-customers">Customers</button>
         <button class="tab-btn" onclick="switchTab('destinations')" id="tab-destinations">Destinations</button>
         <button class="tab-btn" onclick="switchTab('assign')" id="tab-assign">Assign &amp; Links</button>
+        <button class="tab-btn" onclick="switchTab('settings')" id="tab-settings">Settings</button>
       </div>
 
       <!-- ══════════════════════════════════════════════
@@ -198,6 +199,34 @@
         </div>
 
       </div><!-- /panel-assign -->
+
+      <!-- ══════════════════════════════════════════════
+           TAB 4: Settings
+      ══════════════════════════════════════════════ -->
+      <div id="panel-settings" class="tab-panel">
+
+        <div class="panel-section">
+          <h2 class="panel-title">Change Admin Password</h2>
+          <form class="admin-form" onsubmit="changeAdminPassword(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Current password</label>
+                <input type="password" id="admin-pw-current" placeholder="Current password" required />
+              </div>
+              <div class="form-group">
+                <label>New password</label>
+                <input type="password" id="admin-pw-new" placeholder="New password" required />
+              </div>
+              <div class="form-group">
+                <label>Confirm new password</label>
+                <input type="password" id="admin-pw-confirm" placeholder="Confirm new password" required />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Update Password</button>
+          </form>
+        </div>
+
+      </div><!-- /panel-settings -->
 
     </div><!-- /admin-inner -->
   </main>

@@ -351,6 +351,33 @@ def api_update_files(dest_id):
 
     return jsonify({"error": "Destination not found."}), 404
 
+@app.route("/admin/api/admin-password", methods=["PUT"])
+@admin_required
+def api_change_admin_password():
+    data = load_data()
+    body = request.get_json()
+    current = body.get("current_password", "")
+    new_pw  = body.get("new_password", "").strip()
+
+    if not new_pw or len(new_pw) < 6:
+        return jsonify({"error": "New password must be at least 6 characters."}), 400
+
+    admin = data.get("admin", {})
+    stored = admin.get("password_hash", "")
+
+    # Verify current password
+    if stored.startswith("$2b$") or stored.startswith("$2a$"):
+        ok = bcrypt.checkpw(current.encode("utf-8"), stored.encode("utf-8"))
+    else:
+        ok = sha256(current) == stored
+
+    if not ok:
+        return jsonify({"error": "Current password is incorrect."}), 403
+
+    data["admin"]["password_hash"] = sha256(new_pw)
+    save_data(data)
+    return jsonify({"success": True})
+
 @app.route("/admin/api/destinations/<dest_id>/status", methods=["PUT"])
 @admin_required
 def api_update_status(dest_id):
