@@ -29,10 +29,7 @@ def sha256(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 def get_db():
-    url = DATABASE_URL
-    if url and 'sslmode' not in url:
-        url += ('&' if '?' in url else '?') + 'sslmode=require'
-    return psycopg2.connect(url)
+    return psycopg2.connect(DATABASE_URL)
 
 def row_to_dest(r):
     """Convert a DB row to the template-friendly destination dict."""
