@@ -72,6 +72,7 @@
                   <th>Name</th>
                   <th>Email</th>
                   <th>Joined</th>
+                  <th>Destinations</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -83,13 +84,20 @@
                   </td>
                   <td>{{ c.email }}</td>
                   <td>{{ c.joined_date or '—' }}</td>
+                  <td>
+                    {% if c.assigned_dest_ids %}
+                      <span class="badge badge--assigned">{{ c.assigned_dest_ids | length }} assigned</span>
+                    {% else %}
+                      <span style="color:#888;font-size:.85rem;">Rolling window</span>
+                    {% endif %}
+                  </td>
                   <td class="actions-cell">
-                    <button class="btn btn-sm btn-outline" onclick="resetPassword('{{ c.id }}', '{{ c.name }}')">Reset password</button>
+                    <button class="btn btn-sm btn-outline" onclick="resetPassword('{{ c.id }}', '{{ c.name }}')">Reset pw</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteCustomer('{{ c.id }}', '{{ c.name }}')">Delete</button>
                   </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4" class="empty-cell">No customers yet.</td></tr>
+                <tr><td colspan="5" class="empty-cell">No customers yet.</td></tr>
                 {% endfor %}
               </tbody>
             </table>
@@ -141,8 +149,9 @@
           </form>
         </div>
 
+        <!-- Active Destinations -->
         <div class="panel-section">
-          <h2 class="panel-title">All Destinations</h2>
+          <h2 class="panel-title">Active Destinations</h2>
           <p class="panel-hint">
             Rolling window today:
             <strong>{{ month_names[rolling_window.prev[0]-1] }} {{ rolling_window.prev[1] }}</strong> →
@@ -152,13 +161,7 @@
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead>
-                <tr>
-                  <th>Flag</th>
-                  <th>Month / Year</th>
-                  <th>Destination</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
+                <tr><th>Flag</th><th>Month / Year</th><th>Destination</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody id="destinations-tbody">
                 {% for d in data.destinations %}
@@ -177,11 +180,40 @@
                   </td>
                   <td class="actions-cell">
                     <button class="btn btn-sm btn-outline" onclick="openEditLinks('{{ d.id }}')">Edit Links</button>
+                    <button class="btn btn-sm btn-archive" onclick="archiveDestination('{{ d.id }}', '{{ d.name }}')">Archive</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteDestination('{{ d.id }}', '{{ d.name }}')">Delete</button>
                   </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="empty-cell">No destinations yet.</td></tr>
+                <tr><td colspan="5" class="empty-cell">No active destinations.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Archived Destinations -->
+        <div class="panel-section">
+          <h2 class="panel-title">Archived Destinations <span class="archive-count">({{ data.archived_destinations | length }})</span></h2>
+          <p class="panel-hint">Archived destinations are hidden from customers. Reinstate any to bring it back into the library with a new month/year.</p>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr><th>Flag</th><th>Last Used</th><th>Destination</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="archived-tbody">
+                {% for d in data.archived_destinations %}
+                <tr id="dest-row-{{ d.id }}" data-dest-id="{{ d.id }}" class="row-archived">
+                  <td>{{ d.flag }}</td>
+                  <td style="color:#888;">{{ month_names[d.month-1] }} {{ d.year }}</td>
+                  <td style="color:#888;">{{ d.name }}</td>
+                  <td class="actions-cell">
+                    <button class="btn btn-sm btn-reinstate" onclick="openReinstateModal('{{ d.id }}', '{{ d.name }}')">Reinstate</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteDestination('{{ d.id }}', '{{ d.name }}')">Delete</button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty-cell">No archived destinations yet.</td></tr>
                 {% endfor %}
               </tbody>
             </table>
@@ -239,9 +271,43 @@
     </div>
   </div>
 
+  <!-- ══ Reinstate Modal ══ -->
+  <div id="reinstate-modal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h3 class="modal-title">Reinstate Destination</h3>
+      <input type="hidden" id="reinstate-dest-id" />
+      <p class="modal-msg" style="margin-bottom:1rem;">
+        Reinstating: <strong id="reinstate-dest-name"></strong><br/>
+        <span style="font-size:.85rem;color:#666;">Choose the new month and year for this destination.</span>
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Month</label>
+          <select id="reinstate-month">
+            {% for i in range(1, 13) %}
+            <option value="{{ i }}">{{ month_names[i-1] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Year</label>
+          <select id="reinstate-year">
+            {% for y in range(current_year, current_year + 4) %}
+            <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="submitReinstate()">Reinstate</button>
+        <button class="btn btn-ghost-dark" onclick="closeReinstateModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ Customer Detail Modal ══ -->
   <div id="customer-detail-modal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
-    <div class="modal-box">
+    <div class="modal-box modal-box--wide">
       <h3 class="modal-title" id="cust-detail-title">Customer Details</h3>
       <input type="hidden" id="cust-detail-id" />
       <div class="cust-detail-grid">
@@ -251,6 +317,27 @@
           <span class="cust-detail-label">Current rolling window</span>
           <span class="cust-detail-value">{{ month_names[rolling_window.prev[0]-1] }} {{ rolling_window.prev[1] }} &rarr; {{ month_names[rolling_window.current[0]-1] }} {{ rolling_window.current[1] }} &rarr; {{ month_names[rolling_window.next[0]-1] }} {{ rolling_window.next[1] }}</span>
         </div>
+
+        <!-- Assigned Destinations -->
+        <div class="cust-detail-item cust-detail-item--full">
+          <span class="cust-detail-label">Assigned Destinations
+            <span style="font-weight:400;color:#888;font-size:.8rem;"> — overrides rolling window if set</span>
+          </span>
+          <div id="cust-assigned-list" style="margin-top:.5rem;"></div>
+          <div style="margin-top:.6rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+            <select id="cust-assign-select" class="status-select" style="flex:1;min-width:160px;">
+              <option value="">— pick a destination —</option>
+              {% for d in data.all_destinations %}
+              {% if d.status != 'archived' %}
+              <option value="{{ d.id }}" data-name="{{ d.name }}">{{ month_names[d.month-1] }} {{ d.year }}: {{ d.name }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="assignDest()">Assign</button>
+            <button class="btn btn-sm btn-ghost-dark" onclick="clearAllAssignments()">Clear all</button>
+          </div>
+        </div>
+
         <div class="cust-detail-item cust-detail-item--full">
           <label class="cust-detail-label" for="cust-detail-notes">Notes</label>
           <textarea id="cust-detail-notes" rows="3" placeholder="Internal notes about this customer..." style="width:100%;margin-top:0.3rem;"></textarea>
@@ -290,7 +377,7 @@
   </div>
 
   <script>
-    const TMH_DATA = {{ data | tojson }};
+    const TMH_DATA       = {{ data | tojson }};
     const TMH_MONTH_NAMES = {{ month_names | tojson }};
   </script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>

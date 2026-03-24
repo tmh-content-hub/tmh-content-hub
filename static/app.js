@@ -19,7 +19,6 @@ async function changeMyPassword(e) {
   const current = document.getElementById("cpw-current").value;
   const newPw   = document.getElementById("cpw-new").value;
   const confirm = document.getElementById("cpw-confirm").value;
-  const msg     = document.getElementById("cpw-msg");
 
   if (newPw !== confirm) { showCpwMsg("New passwords don't match.", true); return; }
   if (newPw.length < 6)  { showCpwMsg("Password must be at least 6 characters.", true); return; }
@@ -111,16 +110,104 @@ async function submitResetPassword() {
 function openCustomerDetail(custId) {
   const cust = TMH_DATA.customers.find(c => c.id === custId);
   if (!cust) return;
-  document.getElementById("cust-detail-id").value   = custId;
+  document.getElementById("cust-detail-id").value        = custId;
   document.getElementById("cust-detail-title").textContent = cust.name;
   document.getElementById("cust-detail-email").textContent = cust.email;
   document.getElementById("cust-detail-joined").textContent = cust.joined_date || "—";
-  document.getElementById("cust-detail-notes").value = cust.notes || "";
+  document.getElementById("cust-detail-notes").value     = cust.notes || "";
+  renderAssignedList(cust);
   document.getElementById("customer-detail-modal").style.display = "flex";
 }
 
 function closeCustomerDetail() {
   document.getElementById("customer-detail-modal").style.display = "none";
+}
+
+function renderAssignedList(cust) {
+  const container = document.getElementById("cust-assigned-list");
+  const ids = cust.assigned_dest_ids || [];
+  if (ids.length === 0) {
+    container.innerHTML = '<span style="color:#888;font-size:.85rem;">No custom assignments — customer sees rolling window.</span>';
+    return;
+  }
+  container.innerHTML = ids.map(id => {
+    const d = TMH_DATA.all_destinations.find(x => x.id === id);
+    if (!d) return "";
+    const label = `${TMH_MONTH_NAMES[d.month-1]} ${d.year}: ${d.name}`;
+    return `<span class="assign-tag">${escHtml(label)}
+      <button class="assign-tag-remove" onclick="unassignDest('${id}')" title="Remove">×</button>
+    </span>`;
+  }).join("");
+}
+
+async function assignDest() {
+  const custId  = document.getElementById("cust-detail-id").value;
+  const sel     = document.getElementById("cust-assign-select");
+  const dest_id = sel.value;
+  if (!dest_id) { showToast("Please select a destination first.", true); return; }
+  try {
+    const res  = await fetch(`/admin/api/customers/${custId}/assign`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dest_id })
+    });
+    const json = await res.json();
+    if (json.success) {
+      const cust = TMH_DATA.customers.find(c => c.id === custId);
+      if (cust) cust.assigned_dest_ids = json.assigned_dest_ids;
+      renderAssignedList(cust);
+      updateCustomerBadge(custId, json.assigned_dest_ids);
+      sel.value = "";
+      showToast("Destination assigned.");
+    } else showToast(json.error || "Failed.", true);
+  } catch(e) { showToast("Network error.", true); }
+}
+
+async function unassignDest(destId) {
+  const custId = document.getElementById("cust-detail-id").value;
+  try {
+    const res  = await fetch(`/admin/api/customers/${custId}/unassign`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dest_id: destId })
+    });
+    const json = await res.json();
+    if (json.success) {
+      const cust = TMH_DATA.customers.find(c => c.id === custId);
+      if (cust) cust.assigned_dest_ids = json.assigned_dest_ids;
+      renderAssignedList(cust);
+      updateCustomerBadge(custId, json.assigned_dest_ids);
+      showToast("Assignment removed.");
+    } else showToast(json.error || "Failed.", true);
+  } catch(e) { showToast("Network error.", true); }
+}
+
+async function clearAllAssignments() {
+  const custId = document.getElementById("cust-detail-id").value;
+  const cust   = TMH_DATA.customers.find(c => c.id === custId);
+  if (!cust || !cust.assigned_dest_ids || cust.assigned_dest_ids.length === 0) {
+    showToast("No assignments to clear.", true); return;
+  }
+  showConfirm("Clear all assigned destinations for this customer? They will revert to the rolling window.", async () => {
+    for (const destId of [...(cust.assigned_dest_ids || [])]) {
+      await fetch(`/admin/api/customers/${custId}/unassign`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dest_id: destId })
+      });
+    }
+    cust.assigned_dest_ids = [];
+    renderAssignedList(cust);
+    updateCustomerBadge(custId, []);
+    showToast("All assignments cleared.");
+  });
+}
+
+function updateCustomerBadge(custId, ids) {
+  const row = document.getElementById(`cust-row-${custId}`);
+  if (!row) return;
+  const cell = row.querySelectorAll("td")[3];
+  if (!cell) return;
+  cell.innerHTML = ids.length > 0
+    ? `<span class="badge badge--assigned">${ids.length} assigned</span>`
+    : `<span style="color:#888;font-size:.85rem;">Rolling window</span>`;
 }
 
 async function saveCustomerNotes() {
@@ -170,15 +257,16 @@ async function addCustomer(e) {
         <td><button class="link-btn" onclick="openCustomerDetail('${json.customer.id}')">${escHtml(json.customer.name)}</button></td>
         <td>${escHtml(json.customer.email)}</td>
         <td>${escHtml(json.customer.joined_date)}</td>
+        <td><span style="color:#888;font-size:.85rem;">Rolling window</span></td>
         <td class="actions-cell">
-          <button class="btn btn-sm btn-outline" onclick="resetPassword('${json.customer.id}', '${escHtml(json.customer.name)}')">Reset password</button>
+          <button class="btn btn-sm btn-outline" onclick="resetPassword('${json.customer.id}', '${escHtml(json.customer.name)}')">Reset pw</button>
           <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${json.customer.id}', '${escHtml(json.customer.name)}')">Delete</button>
         </td>`;
       tbody.appendChild(row);
 
       TMH_DATA.customers.push({
         id: json.customer.id, name, email,
-        joined_date: json.customer.joined_date, notes: ""
+        joined_date: json.customer.joined_date, notes: "", assigned_dest_ids: []
       });
 
       document.getElementById("new-cust-name").value  = "";
@@ -241,15 +329,18 @@ async function addDestination(e) {
         </td>
         <td class="actions-cell">
           <button class="btn btn-sm btn-outline" onclick="openEditLinks('${json.destination.id}')">Edit Links</button>
+          <button class="btn btn-sm btn-archive" onclick="archiveDestination('${json.destination.id}', '${escHtml(name)}')">Archive</button>
           <button class="btn btn-sm btn-danger" onclick="deleteDestination('${json.destination.id}', '${escHtml(name)}')">Delete</button>
         </td>`;
       tbody.appendChild(row);
 
-      TMH_DATA.destinations.push({
+      const newDest = {
         id: json.destination.id, name, flag, month, year, status,
         files: { blog_docx:"", social_posts:"", promo_assets:"", guide_pdf:"",
                  images_folder:"", canva_guide:"", canva_carousel:"", canva_pinterest:"" }
-      });
+      };
+      TMH_DATA.destinations.push(newDest);
+      TMH_DATA.all_destinations.push(newDest);
 
       document.getElementById("new-dest-name").value = "";
       document.getElementById("new-dest-flag").value = "";
@@ -264,7 +355,9 @@ async function deleteDestination(destId, destName) {
       const json = await res.json();
       if (json.success) {
         document.getElementById(`dest-row-${destId}`)?.remove();
-        TMH_DATA.destinations = TMH_DATA.destinations.filter(d => d.id !== destId);
+        TMH_DATA.destinations        = TMH_DATA.destinations.filter(d => d.id !== destId);
+        TMH_DATA.all_destinations    = TMH_DATA.all_destinations.filter(d => d.id !== destId);
+        TMH_DATA.archived_destinations = (TMH_DATA.archived_destinations||[]).filter(d => d.id !== destId);
         showToast(`"${destName}" deleted.`);
       }
     } catch(e) { showToast("Network error.", true); }
@@ -283,10 +376,129 @@ async function updateStatus(destId, newStatus) {
   } catch(e) { showToast("Network error.", true); }
 }
 
+// ─── Archive / Reinstate ──────────────────────────────────
+
+async function archiveDestination(destId, destName) {
+  showConfirm(`Archive "${destName}"? It will be hidden from customers but kept in your library.`, async () => {
+    try {
+      const res  = await fetch(`/admin/api/destinations/${destId}/archive`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        // Move row from active to archived table
+        const row = document.getElementById(`dest-row-${destId}`);
+        if (row) {
+          row.remove();
+          const archivedTbody = document.getElementById("archived-tbody");
+          const emptyRow = archivedTbody.querySelector(".empty-cell");
+          if (emptyRow) emptyRow.closest("tr").remove();
+
+          const dest = TMH_DATA.destinations.find(d => d.id === destId) ||
+                       TMH_DATA.all_destinations.find(d => d.id === destId);
+          const monthLabel = dest ? TMH_MONTH_NAMES[dest.month-1] + " " + dest.year : "—";
+
+          const newRow = document.createElement("tr");
+          newRow.id = `dest-row-${destId}`;
+          newRow.className = "row-archived";
+          newRow.innerHTML = `
+            <td>${dest ? escHtml(dest.flag) : "🌍"}</td>
+            <td style="color:#888;">${monthLabel}</td>
+            <td style="color:#888;">${escHtml(destName)}</td>
+            <td class="actions-cell">
+              <button class="btn btn-sm btn-reinstate" onclick="openReinstateModal('${destId}', '${escHtml(destName)}')">Reinstate</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteDestination('${destId}', '${escHtml(destName)}')">Delete</button>
+            </td>`;
+          archivedTbody.appendChild(newRow);
+        }
+        TMH_DATA.destinations = TMH_DATA.destinations.filter(d => d.id !== destId);
+        const d = TMH_DATA.all_destinations.find(x => x.id === destId);
+        if (d) {
+          d.status = 'archived';
+          TMH_DATA.archived_destinations = TMH_DATA.archived_destinations || [];
+          TMH_DATA.archived_destinations.push(d);
+        }
+        showToast(`"${destName}" archived.`);
+      } else showToast(json.error || "Failed.", true);
+    } catch(e) { showToast("Network error.", true); }
+  });
+}
+
+let _reinstateDestId = null;
+
+function openReinstateModal(destId, destName) {
+  _reinstateDestId = destId;
+  document.getElementById("reinstate-dest-id").value          = destId;
+  document.getElementById("reinstate-dest-name").textContent  = destName;
+  document.getElementById("reinstate-modal").style.display    = "flex";
+}
+
+function closeReinstateModal() {
+  document.getElementById("reinstate-modal").style.display = "none";
+  _reinstateDestId = null;
+}
+
+async function submitReinstate() {
+  const destId = document.getElementById("reinstate-dest-id").value;
+  const month  = parseInt(document.getElementById("reinstate-month").value);
+  const year   = parseInt(document.getElementById("reinstate-year").value);
+  const btn    = document.querySelector("#reinstate-modal .btn-primary");
+  if (btn) { btn.disabled = true; btn.textContent = "Reinstating…"; }
+
+  try {
+    const res  = await fetch(`/admin/api/destinations/${destId}/reinstate`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month, year })
+    });
+    const json = await res.json();
+    if (json.success) {
+      const d = json.destination;
+      // Remove from archived table
+      document.getElementById(`dest-row-${destId}`)?.remove();
+
+      // Add to active table
+      const tbody = document.getElementById("destinations-tbody");
+      const emptyRow = tbody.querySelector(".empty-cell");
+      if (emptyRow) emptyRow.closest("tr").remove();
+
+      const row = document.createElement("tr");
+      row.id = `dest-row-${destId}`;
+      row.innerHTML = `
+        <td>${escHtml(d.flag)}</td>
+        <td><strong>${TMH_MONTH_NAMES[d.month-1]} ${d.year}</strong></td>
+        <td>${escHtml(d.name)}</td>
+        <td>
+          <select class="status-select" onchange="updateStatus('${destId}', this.value)">
+            <option value="ready" selected>Ready</option>
+            <option value="coming_soon">Coming Soon</option>
+          </select>
+        </td>
+        <td class="actions-cell">
+          <button class="btn btn-sm btn-outline" onclick="openEditLinks('${destId}')">Edit Links</button>
+          <button class="btn btn-sm btn-archive" onclick="archiveDestination('${destId}', '${escHtml(d.name)}')">Archive</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteDestination('${destId}', '${escHtml(d.name)}')">Delete</button>
+        </td>`;
+      tbody.appendChild(row);
+
+      // Update data
+      const existing = TMH_DATA.all_destinations.find(x => x.id === destId);
+      if (existing) { existing.status = 'ready'; existing.month = d.month; existing.year = d.year; }
+      TMH_DATA.archived_destinations = (TMH_DATA.archived_destinations||[]).filter(x => x.id !== destId);
+      if (existing) TMH_DATA.destinations.push(existing);
+
+      closeReinstateModal();
+      showToast(`"${d.name}" reinstated for ${TMH_MONTH_NAMES[d.month-1]} ${d.year}.`);
+    } else showToast(json.error || "Failed.", true);
+  } catch(e) { showToast("Network error.", true); }
+  finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Reinstate"; }
+  }
+}
+
 // ─── Edit Links Modal ─────────────────────────────────────
 
 function openEditLinks(destId) {
-  const dest = TMH_DATA.destinations.find(d => d.id === destId);
+  const dest = TMH_DATA.all_destinations.find(d => d.id === destId);
   if (!dest) return;
 
   document.getElementById("edit-links-dest-id").value = destId;
@@ -327,7 +539,7 @@ async function saveEditLinks() {
     });
     const json = await res.json();
     if (json.success) {
-      const dest = TMH_DATA.destinations.find(d => d.id === destId);
+      const dest = TMH_DATA.all_destinations.find(d => d.id === destId);
       if (dest) Object.assign(dest.files, body);
       closeEditLinks();
       showToast("✅ Links saved successfully.");
