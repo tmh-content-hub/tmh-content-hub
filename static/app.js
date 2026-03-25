@@ -110,12 +110,13 @@ async function submitResetPassword() {
 function openCustomerDetail(custId) {
   const cust = TMH_DATA.customers.find(c => c.id === custId);
   if (!cust) return;
-  document.getElementById("cust-detail-id").value          = custId;
-  document.getElementById("cust-detail-title").textContent  = cust.name;
-  document.getElementById("cust-detail-email").textContent  = cust.email;
-  document.getElementById("cust-detail-joined").textContent = cust.joined_date || "—";
-  document.getElementById("cust-detail-notes").value        = cust.notes || "";
-  document.getElementById("cust-detail-plan").value         = cust.plan || "core";
+  document.getElementById("cust-detail-id").value               = custId;
+  document.getElementById("cust-detail-title").textContent       = cust.name;
+  document.getElementById("cust-detail-email").textContent       = cust.email;
+  document.getElementById("cust-detail-joined").textContent      = cust.joined_date || "—";
+  document.getElementById("cust-detail-last-login").textContent  = fmtLastLogin(cust.last_login);
+  document.getElementById("cust-detail-notes").value             = cust.notes || "";
+  document.getElementById("cust-detail-plan").value              = cust.plan || "core";
   renderAssignedList(cust);
   document.getElementById("customer-detail-modal").style.display = "flex";
 }
@@ -204,7 +205,7 @@ async function clearAllAssignments() {
 function updateCustomerBadge(custId, ids) {
   const row = document.getElementById(`cust-row-${custId}`);
   if (!row) return;
-  const cell = row.querySelectorAll("td")[3];
+  const cell = row.querySelectorAll("td")[5]; // Name, Email, Joined, Plan, LastLogin, Destinations
   if (!cell) return;
   cell.innerHTML = ids.length > 0
     ? `<span class="badge badge--assigned">${ids.length} assigned</span>`
@@ -275,6 +276,8 @@ async function addCustomer(e) {
         <td><button class="link-btn" onclick="openCustomerDetail('${json.customer.id}')">${escHtml(json.customer.name)}</button></td>
         <td>${escHtml(json.customer.email)}</td>
         <td>${escHtml(json.customer.joined_date)}</td>
+        <td><span class="badge badge--plan badge--plan-core">Core</span></td>
+        <td class="last-login-cell"><span style="color:#bbb;">Never</span></td>
         <td><span style="color:#888;font-size:.85rem;">Rolling window</span></td>
         <td class="actions-cell">
           <button class="btn btn-sm btn-outline" onclick="resetPassword('${json.customer.id}', '${escHtml(json.customer.name)}')">Reset pw</button>
@@ -283,8 +286,8 @@ async function addCustomer(e) {
       tbody.appendChild(row);
 
       TMH_DATA.customers.push({
-        id: json.customer.id, name, email,
-        joined_date: json.customer.joined_date, notes: "", assigned_dest_ids: []
+        id: json.customer.id, name, email, plan: "core",
+        joined_date: json.customer.joined_date, last_login: null, notes: "", assigned_dest_ids: []
       });
 
       document.getElementById("new-cust-name").value  = "";
@@ -607,6 +610,16 @@ function switchTab(name) {
 }
 
 // ─── Utility ─────────────────────────────────────────────
+
+function fmtLastLogin(iso) {
+  if (!iso) return "Never";
+  try {
+    const d = new Date(iso + "Z"); // stored as UTC
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}, `
+         + `${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}`;
+  } catch(e) { return iso; }
+}
 
 function escHtml(str) {
   if (!str) return "";

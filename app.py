@@ -3,7 +3,7 @@ import json
 import hashlib
 import psycopg2
 import psycopg2.extras
-from datetime import date
+from datetime import date, datetime
 from functools import wraps
 from flask import (
     Flask, render_template, request, redirect,
@@ -162,13 +162,17 @@ def login():
             cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM customers WHERE LOWER(email)=%s", (email,))
             customer = cur.fetchone()
-            cur.close(); conn.close()
             if customer and check_password(password, customer["password_hash"]):
+                cur.execute("UPDATE customers SET last_login=%s WHERE id=%s",
+                            (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"), customer["id"]))
+                conn.commit()
+                cur.close(); conn.close()
                 session.clear()
                 session["user_id"]   = customer["id"]
                 session["user_name"] = customer["name"]
                 session["role"]      = "customer"
                 return redirect(url_for("dashboard"))
+            cur.close(); conn.close()
         except Exception as e:
             return render_template("login.html", error=f"Database error: {e}")
         error = "Invalid email or password. Please try again."

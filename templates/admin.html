@@ -73,6 +73,7 @@
                   <th>Email</th>
                   <th>Joined</th>
                   <th>Plan</th>
+                  <th>Last Login</th>
                   <th>Destinations</th>
                   <th>Actions</th>
                 </tr>
@@ -88,6 +89,13 @@
                   <td>
                     <span class="badge badge--plan badge--plan-{{ c.plan or 'core' }}">{{ (c.plan or 'core') | capitalize }}</span>
                   </td>
+                  <td class="last-login-cell">
+                    {% if c.last_login %}
+                      <span title="{{ c.last_login }}">{{ c.last_login[:10] }}</span>
+                    {% else %}
+                      <span style="color:#bbb;">Never</span>
+                    {% endif %}
+                  </td>
                   <td>
                     {% if c.assigned_dest_ids %}
                       <span class="badge badge--assigned">{{ c.assigned_dest_ids | length }} assigned</span>
@@ -101,7 +109,7 @@
                   </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="empty-cell">No customers yet.</td></tr>
+                <tr><td colspan="7" class="empty-cell">No customers yet.</td></tr>
                 {% endfor %}
               </tbody>
             </table>
@@ -318,6 +326,7 @@
       <div class="cust-detail-grid">
         <div class="cust-detail-item"><span class="cust-detail-label">Email</span><span id="cust-detail-email" class="cust-detail-value"></span></div>
         <div class="cust-detail-item"><span class="cust-detail-label">Joined</span><span id="cust-detail-joined" class="cust-detail-value"></span></div>
+        <div class="cust-detail-item"><span class="cust-detail-label">Last Login</span><span id="cust-detail-last-login" class="cust-detail-value"></span></div>
         <div class="cust-detail-item">
           <span class="cust-detail-label">Plan</span>
           <select id="cust-detail-plan" class="status-select" style="margin-top:.3rem;">
