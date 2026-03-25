@@ -177,7 +177,7 @@
               </thead>
               <tbody id="destinations-tbody">
                 {% for d in data.destinations %}
-                <tr id="dest-row-{{ d.id }}" data-dest-id="{{ d.id }}"
+                <tr id="dest-row-{{ d.id }}" data-dest-id="{{ d.id }}" data-year="{{ d.year }}" data-month="{{ d.month }}"
                     {% if d.month == rolling_window.current[0] and d.year == rolling_window.current[1] %}class="row-highlight-current"
                     {% elif d.month == rolling_window.prev[0] and d.year == rolling_window.prev[1] %}class="row-highlight-prev"
                     {% elif d.month == rolling_window.next[0] and d.year == rolling_window.next[1] %}class="row-highlight-next"{% endif %}>

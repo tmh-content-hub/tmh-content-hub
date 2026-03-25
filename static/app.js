@@ -338,6 +338,8 @@ async function addDestination(e) {
       const row = document.createElement("tr");
       row.id = `dest-row-${json.destination.id}`;
       row.setAttribute("data-dest-id", json.destination.id);
+      row.setAttribute("data-year", year);
+      row.setAttribute("data-month", month);
       row.innerHTML = `
         <td>${escHtml(flag)}</td>
         <td><strong>${TMH_MONTH_NAMES[month-1]} ${year}</strong></td>
@@ -354,6 +356,7 @@ async function addDestination(e) {
           <button class="btn btn-sm btn-danger" onclick="deleteDestination('${json.destination.id}', '${escHtml(name)}')">Delete</button>
         </td>`;
       tbody.appendChild(row);
+      sortDestinationsTable();
 
       const newDest = {
         id: json.destination.id, name, flag, month, year, status,
@@ -484,6 +487,9 @@ async function submitReinstate() {
 
       const row = document.createElement("tr");
       row.id = `dest-row-${destId}`;
+      row.setAttribute("data-dest-id", destId);
+      row.setAttribute("data-year", d.year);
+      row.setAttribute("data-month", d.month);
       row.innerHTML = `
         <td>${escHtml(d.flag)}</td>
         <td><strong>${TMH_MONTH_NAMES[d.month-1]} ${d.year}</strong></td>
@@ -500,6 +506,7 @@ async function submitReinstate() {
           <button class="btn btn-sm btn-danger" onclick="deleteDestination('${destId}', '${escHtml(d.name)}')">Delete</button>
         </td>`;
       tbody.appendChild(row);
+      sortDestinationsTable();
 
       // Update data
       const existing = TMH_DATA.all_destinations.find(x => x.id === destId);
@@ -598,6 +605,20 @@ async function changeAdminPassword(e) {
       document.getElementById("admin-pw-confirm").value = "";
     } else { showToast(json.error || "Failed.", true); }
   } catch(e) { showToast("Network error.", true); }
+}
+
+// ─── Sort destinations table by year then month ──────────
+
+function sortDestinationsTable() {
+  const tbody = document.getElementById("destinations-tbody");
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll("tr[data-dest-id]"));
+  rows.sort((a, b) => {
+    const ya = parseInt(a.dataset.year || 0), ma = parseInt(a.dataset.month || 0);
+    const yb = parseInt(b.dataset.year || 0), mb = parseInt(b.dataset.month || 0);
+    return ya !== yb ? ya - yb : ma - mb;
+  });
+  rows.forEach(r => tbody.appendChild(r));
 }
 
 // ─── Tab switching ────────────────────────────────────────
