@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit Supplier Offers — Travel Marketing Hub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="dashboard-page">
+
+  <!-- ── Header ───────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Travel Marketing Hub" class="header-logo"
+           onerror="this.style.display='none';document.getElementById('header-wordmark').style.display='block';" />
+      <span id="header-wordmark" class="header-wordmark" style="display:none;">Travel Marketing Hub</span>
+      <nav class="header-nav offers-nav">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost btn-sm">← Back to Hub</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Hero ──────────────────────────────────────────────── -->
+  <section class="offers-hero">
+    <div class="offers-hero-inner">
+      <div class="hero-text">
+        <p class="hero-eyebrow">{{ plan | capitalize }} Plan</p>
+        <h1 class="hero-heading">Submit Your Supplier Offers</h1>
+        <p class="hero-sub">Share supplier posts or holiday offers for us to turn into social content for you.</p>
+        <p style="margin-top:0.75rem; font-size:0.875rem; color:rgba(255,255,255,0.65);">
+          {% if plan == 'pro' %}You can submit up to <strong style="color:#fff;">4 offers</strong> each month.
+          {% else %}You can submit up to <strong style="color:#fff;">8 offers</strong> each month.{% endif %}
+        </p>
+      </div>
+      <div class="offers-usage">
+        <div class="offers-usage-count">{{ used }} / {{ limit }}</div>
+        <div class="offers-usage-label">Used this month</div>
+        <div class="offers-usage-bar">
+          <div class="offers-usage-fill {% if used >= limit %}offers-usage-fill--full{% endif %}"
+               style="width: {{ [(used / limit * 100), 100] | min | int }}%"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Main ──────────────────────────────────────────────── -->
+  <main class="offers-main">
+    <div class="offers-inner">
+
+      <!-- Banners -->
+      {% if success %}
+      <div class="offer-success-banner">
+        ✅ Your offer has been submitted successfully. We'll get to work on it!
+      </div>
+      {% endif %}
+
+      {% if error == 'limit' %}
+      <div class="offer-limit-banner">
+        ⚠️ You've reached your {{ limit }}-offer limit for {{ current_month }}. Your allowance resets on the 1st of next month.
+      </div>
+      {% elif error == 'url' %}
+      <div class="offer-limit-banner">
+        ⚠️ Please enter a supplier URL before submitting.
+      </div>
+      {% endif %}
+
+      <!-- Submission form -->
+      {% if used < limit %}
+      <div class="offer-form-card">
+        <h2 class="offer-form-title">Add a New Offer</h2>
+        <p class="offer-form-hint">Paste the link to a supplier Facebook post, a holiday deal page, or any offer URL. Add any notes to help us understand what you'd like.</p>
+
+        <form class="offer-form" method="POST" action="{{ url_for('submit_offer') }}">
+
+          <div class="form-group">
+            <label>Supplier URL <span style="color:#dc2626;">*</span></label>
+            <input type="url" name="offer_url" placeholder="https://facebook.com/... or https://..." required />
+          </div>
+
+          <div class="offer-form-row">
+            <div class="form-group">
+              <label>Caption / Post Copy <span style="color:#888; font-weight:400;">(optional)</span></label>
+              <textarea name="caption" rows="3" placeholder="Paste the supplier's caption here if you'd like us to use or adapt it..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Notes for Us <span style="color:#888; font-weight:400;">(optional)</span></label>
+              <textarea name="notes" rows="3" placeholder="Anything we should know — dates, tone, specific angles..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Image URL <span style="color:#888; font-weight:400;">(optional — Google Drive or Dropbox link)</span></label>
+            <input type="url" name="image_url" placeholder="https://drive.google.com/... (upload your image and paste the share link)" />
+          </div>
+
+          <div class="offer-form-actions">
+            <button type="submit" class="btn btn-primary">Submit Offer</button>
+            <span class="offer-limit-note">{{ limit - used }} offer{{ 's' if (limit - used) != 1 }} remaining this month</span>
+          </div>
+
+        </form>
+      </div>
+      {% else %}
+      <div class="offer-limit-banner">
+        ⚠️ You've used all {{ limit }} offers for {{ current_month }}. Your allowance resets on the 1st of next month.
+      </div>
+      {% endif %}
+
+      <!-- Submitted offers this month -->
+      <h2 class="offers-section-title">{{ current_month }} {{ current_year }} — Submitted Offers</h2>
+
+      {% if my_offers %}
+      <div class="offer-cards">
+        {% for offer in my_offers %}
+        <div class="offer-card" id="offer-card-{{ offer.id }}">
+          <div class="offer-card-num">#{{ loop.index }}</div>
+          <div class="offer-card-body">
+            <a href="{{ offer.offer_url }}" target="_blank" rel="noopener" class="offer-card-url">
+              {{ offer.offer_url }}
+            </a>
+            <div class="offer-card-meta">Submitted {{ offer.submitted_at[:10] }}</div>
+            {% if offer.caption %}
+            <div class="offer-card-caption">{{ offer.caption }}</div>
+            {% endif %}
+            {% if offer.notes %}
+            <div class="offer-card-notes">Notes: {{ offer.notes }}</div>
+            {% endif %}
+            {% if offer.image_url %}
+            <div class="offer-card-image">
+              📎 <a href="{{ offer.image_url }}" target="_blank" rel="noopener" style="color:var(--teal);">View attached image</a>
+            </div>
+            {% endif %}
+          </div>
+          <div class="offer-card-actions">
+            <button class="btn btn-sm btn-danger"
+                    onclick="deleteMyOffer('{{ offer.id }}')">Remove</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <p>No offers submitted yet this month.</p>
+        <p>Use the form above to send us your first supplier offer.</p>
+      </div>
+      {% endif %}
+
+    </div><!-- /offers-inner -->
+  </main>
+
+  <!-- ── Support bar ───────────────────────────────────────── -->
+  <footer class="support-bar">
+    <div class="support-inner">
+      <span>Need help?</span>
+      <a href="mailto:info@thetravelmarketinghub.com">info@thetravelmarketinghub.com</a>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

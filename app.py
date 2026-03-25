@@ -21,6 +21,8 @@ MONTH_NAMES = ["January","February","March","April","May","June",
 FILE_FIELDS = ["blog_docx","social_posts","promo_assets","guide_pdf",
                "images_folder","canva_guide","canva_carousel","canva_pinterest","video_reels"]
 
+OFFER_LIMITS = {"core": 0, "pro": 4, "managed": 8}
+
 # ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
@@ -284,6 +286,107 @@ def api_customer_change_password():
         return jsonify({"error": str(e)}), 500
 
 # ─────────────────────────────────────────────
+# Supplier offers — customer
+# ─────────────────────────────────────────────
+
+@app.route("/offers", methods=["GET"])
+@login_required
+def offers():
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM customers WHERE id=%s", (session["user_id"],))
+        customer = dict(cur.fetchone())
+        plan  = customer.get("plan") or "core"
+        limit = OFFER_LIMITS.get(plan, 0)
+        if limit == 0:
+            cur.close(); conn.close()
+            return redirect(url_for("dashboard"))
+        today = date.today()
+        cur.execute("""
+            SELECT * FROM supplier_offers
+            WHERE customer_id=%s AND month=%s AND year=%s
+            ORDER BY submitted_at DESC
+        """, (session["user_id"], today.month, today.year))
+        my_offers = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        success = request.args.get("success")
+        error   = request.args.get("error")
+        return render_template("offers.html",
+            customer=customer, my_offers=my_offers,
+            limit=limit, used=len(my_offers), plan=plan,
+            current_month=MONTH_NAMES[today.month - 1],
+            current_year=today.year,
+            success=success, error=error,
+        )
+    except Exception as e:
+        return f"<h2>Offers error</h2><pre>{e}</pre>", 500
+
+@app.route("/offers", methods=["POST"])
+@login_required
+def submit_offer():
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT plan FROM customers WHERE id=%s", (session["user_id"],))
+        cust  = cur.fetchone()
+        plan  = (cust["plan"] if cust else None) or "core"
+        limit = OFFER_LIMITS.get(plan, 0)
+        if limit == 0:
+            cur.close(); conn.close()
+            return redirect(url_for("dashboard"))
+        today = date.today()
+        cur.execute("SELECT COUNT(*) as n FROM supplier_offers WHERE customer_id=%s AND month=%s AND year=%s",
+                    (session["user_id"], today.month, today.year))
+        used = cur.fetchone()["n"]
+        if used >= limit:
+            cur.close(); conn.close()
+            return redirect(url_for("offers") + "?error=limit")
+        offer_url = request.form.get("offer_url", "").strip()
+        if not offer_url:
+            cur.close(); conn.close()
+            return redirect(url_for("offers") + "?error=url")
+        caption   = request.form.get("caption", "").strip()
+        notes     = request.form.get("notes", "").strip()
+        image_url = request.form.get("image_url", "").strip()
+        offer_id  = f"offer_{int(datetime.utcnow().timestamp() * 1000)}"
+        cur.execute("""
+            INSERT INTO supplier_offers
+                (id, customer_id, submitted_at, month, year, offer_url, caption, notes, image_url)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (offer_id, session["user_id"],
+              datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+              today.month, today.year,
+              offer_url, caption, notes, image_url))
+        conn.commit(); cur.close(); conn.close()
+        return redirect(url_for("offers") + "?success=1")
+    except Exception as e:
+        return f"<h2>Submit error</h2><pre>{e}</pre>", 500
+
+@app.route("/api/offers/<offer_id>", methods=["DELETE"])
+@login_required
+def api_delete_my_offer(offer_id):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM supplier_offers WHERE id=%s AND customer_id=%s",
+                    (offer_id, session["user_id"]))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/offers/<offer_id>", methods=["DELETE"])
+@admin_required
+def api_admin_delete_offer(offer_id):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM supplier_offers WHERE id=%s", (offer_id,))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ─────────────────────────────────────────────
 # Admin auth
 # ─────────────────────────────────────────────
 
@@ -338,7 +441,15 @@ def admin_panel():
             customers.append(c)
 
         cur.execute("SELECT * FROM destinations ORDER BY year, month")
-        all_dests    = [row_to_dest(r) for r in cur.fetchall()]
+        all_dests = [row_to_dest(r) for r in cur.fetchall()]
+
+        cur.execute("""
+            SELECT o.*, c.name as customer_name, c.plan as customer_plan
+            FROM supplier_offers o
+            JOIN customers c ON o.customer_id = c.id
+            ORDER BY o.year DESC, o.month DESC, o.submitted_at DESC
+        """)
+        all_offers = [dict(r) for r in cur.fetchall()]
         cur.close(); conn.close()
 
         active_dests   = [d for d in all_dests if d['status'] != 'archived']
@@ -346,10 +457,11 @@ def admin_panel():
 
         (prev_m, prev_y), (cur_m, cur_y), (next_m, next_y) = rolling_window()
         data = {
-            "customers":           customers,
-            "destinations":        active_dests,
+            "customers":             customers,
+            "destinations":          active_dests,
             "archived_destinations": archived_dests,
-            "all_destinations":    all_dests,
+            "all_destinations":      all_dests,
+            "offers":                all_offers,
         }
         return render_template("admin.html",
             data=data,

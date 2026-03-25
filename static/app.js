@@ -607,6 +607,43 @@ async function changeAdminPassword(e) {
   } catch(e) { showToast("Network error.", true); }
 }
 
+// ─── Supplier offers — customer ───────────────────────────
+
+async function deleteMyOffer(offerId) {
+  if (!confirm("Remove this offer? This cannot be undone.")) return;
+  try {
+    const res  = await fetch(`/api/offers/${offerId}`, { method: "DELETE" });
+    const json = await res.json();
+    if (json.success) {
+      document.getElementById(`offer-card-${offerId}`)?.remove();
+      showToast("Offer removed.");
+    } else showToast(json.error || "Failed.", true);
+  } catch(e) { showToast("Network error.", true); }
+}
+
+// ─── Supplier offers — admin ───────────────────────────────
+
+async function adminDeleteOffer(offerId, customerName) {
+  showConfirm(`Delete this offer from ${customerName}? This cannot be undone.`, async () => {
+    try {
+      const res  = await fetch(`/admin/api/offers/${offerId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        document.getElementById(`offer-row-${offerId}`)?.remove();
+        showToast("Offer deleted.");
+      } else showToast(json.error || "Failed.", true);
+    } catch(e) { showToast("Network error.", true); }
+  });
+}
+
+function filterOffers() {
+  const val   = document.getElementById("offer-month-filter").value;
+  const rows  = document.querySelectorAll("#offers-table tbody tr[data-month-key]");
+  rows.forEach(row => {
+    row.style.display = (val === "all" || row.dataset.monthKey === val) ? "" : "none";
+  });
+}
+
 // ─── Sort destinations table by year then month ──────────
 
 function sortDestinationsTable() {
@@ -624,7 +661,7 @@ function sortDestinationsTable() {
 // ─── Tab switching ────────────────────────────────────────
 
 function switchTab(name) {
-  ["customers","destinations","settings"].forEach(tab => {
+  ["customers","destinations","offers","settings"].forEach(tab => {
     document.getElementById(`tab-${tab}`)?.classList.toggle("tab-btn--active", tab === name);
     document.getElementById(`panel-${tab}`)?.classList.toggle("tab-panel--active", tab === name);
   });

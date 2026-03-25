@@ -36,6 +36,7 @@
       <div class="tab-nav">
         <button class="tab-btn tab-btn--active" onclick="switchTab('customers')" id="tab-customers">Customers</button>
         <button class="tab-btn" onclick="switchTab('destinations')" id="tab-destinations">Destinations</button>
+        <button class="tab-btn" onclick="switchTab('offers')" id="tab-offers">Offers {% if data.offers %}<span style="background:var(--orange);color:#fff;border-radius:999px;padding:.1rem .45rem;font-size:.7rem;font-weight:700;margin-left:.2rem;">{{ data.offers | length }}</span>{% endif %}</button>
         <button class="tab-btn" onclick="switchTab('settings')" id="tab-settings">Settings</button>
       </div>
 
@@ -234,7 +235,91 @@
 
       </div><!-- /panel-destinations -->
 
-      <!-- ══ TAB 3: Settings ══ -->
+      <!-- ══ TAB 3: Offers ══ -->
+      <div id="panel-offers" class="tab-panel">
+
+        <div class="panel-section">
+          <h2 class="panel-title">Submitted Supplier Offers</h2>
+          <p class="panel-hint">Offers submitted by Pro and Managed customers. Pro = up to 4/month, Managed = up to 8/month.</p>
+
+          {% if data.offers %}
+
+          <!-- Month filter -->
+          <div class="offer-month-filter">
+            <label>Filter by month:</label>
+            <select class="status-select" id="offer-month-filter" onchange="filterOffers()">
+              <option value="all">All months</option>
+              {% set seen = [] %}
+              {% for o in data.offers %}
+                {% set key = o.year ~ '-' ~ '%02d' % o.month %}
+                {% if key not in seen %}
+                  {% set _ = seen.append(key) %}
+                  <option value="{{ key }}">{{ month_names[o.month-1] }} {{ o.year }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="admin-table-wrap">
+            <table class="admin-table" id="offers-table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Plan</th>
+                  <th>Date</th>
+                  <th>Month</th>
+                  <th>Offer URL</th>
+                  <th>Caption</th>
+                  <th>Notes</th>
+                  <th>Image</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in data.offers %}
+                <tr id="offer-row-{{ o.id }}" data-month-key="{{ o.year }}-{{ '%02d' % o.month }}">
+                  <td><strong>{{ o.customer_name }}</strong></td>
+                  <td><span class="badge badge--plan badge--plan-{{ o.customer_plan or 'core' }}">{{ (o.customer_plan or 'core') | capitalize }}</span></td>
+                  <td style="white-space:nowrap;font-size:.82rem;">{{ o.submitted_at[:10] }}</td>
+                  <td style="white-space:nowrap;font-size:.82rem;">{{ month_names[o.month-1] }} {{ o.year }}</td>
+                  <td>
+                    <a href="{{ o.offer_url }}" target="_blank" rel="noopener"
+                       class="offer-admin-url" title="{{ o.offer_url }}">{{ o.offer_url }}</a>
+                  </td>
+                  <td>
+                    {% if o.caption %}
+                    <span class="offer-admin-text" title="{{ o.caption }}">{{ o.caption }}</span>
+                    {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if o.notes %}
+                    <span class="offer-admin-text" title="{{ o.notes }}">{{ o.notes }}</span>
+                    {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if o.image_url %}
+                    <a href="{{ o.image_url }}" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline" style="font-size:.75rem;">View</a>
+                    {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
+                  </td>
+                  <td class="actions-cell">
+                    <button class="btn btn-sm btn-danger"
+                            onclick="adminDeleteOffer('{{ o.id }}', '{{ o.customer_name }}')">Delete</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {% else %}
+          <p style="color:var(--muted); font-size:.9rem;">No offers submitted yet.</p>
+          {% endif %}
+        </div>
+
+      </div><!-- /panel-offers -->
+
+      <!-- ══ TAB 4: Settings ══ -->
       <div id="panel-settings" class="tab-panel">
         <div class="panel-section">
           <h2 class="panel-title">Change Admin Password</h2>

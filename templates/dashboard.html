@@ -16,6 +16,9 @@
       <span id="header-wordmark" class="header-wordmark" style="display:none;">Travel Marketing Hub</span>
       <nav class="header-nav">
         <span class="header-greeting">{{ customer.name }}</span>
+        {% if customer.plan in ['pro', 'managed'] %}
+        <a href="{{ url_for('offers') }}" class="btn btn-ghost btn-sm">Submit Offers</a>
+        {% endif %}
         <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Sign out</a>
       </nav>
     </div>
