@@ -434,6 +434,21 @@ def api_update_notes(cust_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/admin/api/customers/<cust_id>/plan", methods=["PUT"])
+@admin_required
+def api_update_plan(cust_id):
+    body = request.get_json()
+    plan = body.get("plan", "core")
+    if plan not in ["core","pro","managed"]:
+        return jsonify({"error": "Invalid plan."}), 400
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE customers SET plan=%s WHERE id=%s", (plan, cust_id))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/admin/api/customers/<cust_id>/assign", methods=["PUT"])
 @admin_required
 def api_assign_dest(cust_id):

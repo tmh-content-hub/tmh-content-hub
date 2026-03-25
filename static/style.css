@@ -154,6 +154,28 @@ a:hover { text-decoration: underline; }
 
 .archive-count { font-size: .85rem; font-weight: 400; color: #888; }
 
+.badge--plan {
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+}
+.badge--plan-core    { background: #f1f5f9; color: #475569; }
+.badge--plan-pro     { background: #ede9fe; color: #6d28d9; }
+.badge--plan-managed { background: #fef3c7; color: #b45309; }
+
+.plan-badge {
+  display: inline-block;
+  margin-top: .6rem;
+  padding: .2rem .75rem;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+}
+.plan-badge--core    { background: rgba(255,255,255,0.15); color: #fff; }
+.plan-badge--pro     { background: #ede9fe; color: #6d28d9; }
+.plan-badge--managed { background: #fef3c7; color: #b45309; }
+
 .badge--assigned {
   background: #e0f2fe;
   color: #0369a1;

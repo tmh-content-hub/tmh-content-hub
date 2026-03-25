@@ -28,6 +28,7 @@
         <p class="hero-eyebrow">Your Content Hub</p>
         <h1 class="hero-heading">Welcome back, {{ customer.name.split()[0] }} 👋</h1>
         <p class="hero-sub">Your monthly destination content — download, customise, and schedule.</p>
+        <span class="plan-badge plan-badge--{{ customer.plan or 'core' }}">{{ (customer.plan or 'Core') | capitalize }} Plan</span>
       </div>
       <div class="hero-stats">
         <div class="stat-pill">

@@ -110,11 +110,12 @@ async function submitResetPassword() {
 function openCustomerDetail(custId) {
   const cust = TMH_DATA.customers.find(c => c.id === custId);
   if (!cust) return;
-  document.getElementById("cust-detail-id").value        = custId;
-  document.getElementById("cust-detail-title").textContent = cust.name;
-  document.getElementById("cust-detail-email").textContent = cust.email;
+  document.getElementById("cust-detail-id").value          = custId;
+  document.getElementById("cust-detail-title").textContent  = cust.name;
+  document.getElementById("cust-detail-email").textContent  = cust.email;
   document.getElementById("cust-detail-joined").textContent = cust.joined_date || "—";
-  document.getElementById("cust-detail-notes").value     = cust.notes || "";
+  document.getElementById("cust-detail-notes").value        = cust.notes || "";
+  document.getElementById("cust-detail-plan").value         = cust.plan || "core";
   renderAssignedList(cust);
   document.getElementById("customer-detail-modal").style.display = "flex";
 }
@@ -210,22 +211,39 @@ function updateCustomerBadge(custId, ids) {
     : `<span style="color:#888;font-size:.85rem;">Rolling window</span>`;
 }
 
-async function saveCustomerNotes() {
+async function saveCustomerDetail() {
   const custId = document.getElementById("cust-detail-id").value;
   const notes  = document.getElementById("cust-detail-notes").value;
+  const plan   = document.getElementById("cust-detail-plan").value;
   try {
-    const res  = await fetch(`/admin/api/customers/${custId}/notes`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes })
-    });
-    const json = await res.json();
-    if (json.success) {
+    const [notesRes, planRes] = await Promise.all([
+      fetch(`/admin/api/customers/${custId}/notes`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes })
+      }),
+      fetch(`/admin/api/customers/${custId}/plan`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan })
+      })
+    ]);
+    const [nj, pj] = await Promise.all([notesRes.json(), planRes.json()]);
+    if (nj.success && pj.success) {
       const cust = TMH_DATA.customers.find(c => c.id === custId);
-      if (cust) cust.notes = notes;
+      if (cust) { cust.notes = notes; cust.plan = plan; }
+      updatePlanBadge(custId, plan);
       closeCustomerDetail();
-      showToast("Notes saved.");
-    } else { showToast(json.error || "Failed.", true); }
+      showToast("Customer details saved.");
+    } else { showToast((nj.error || pj.error) || "Failed.", true); }
   } catch(e) { showToast("Network error.", true); }
+}
+
+function updatePlanBadge(custId, plan) {
+  const row = document.getElementById(`cust-row-${custId}`);
+  if (!row) return;
+  const cell = row.querySelectorAll("td")[3];
+  if (!cell) return;
+  const label = plan.charAt(0).toUpperCase() + plan.slice(1);
+  cell.innerHTML = `<span class="badge badge--plan badge--plan-${plan}">${label}</span>`;
 }
 
 // ─── Admin: Customers ─────────────────────────────────────

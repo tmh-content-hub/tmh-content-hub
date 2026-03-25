@@ -72,6 +72,7 @@
                   <th>Name</th>
                   <th>Email</th>
                   <th>Joined</th>
+                  <th>Plan</th>
                   <th>Destinations</th>
                   <th>Actions</th>
                 </tr>
@@ -84,6 +85,9 @@
                   </td>
                   <td>{{ c.email }}</td>
                   <td>{{ c.joined_date or '—' }}</td>
+                  <td>
+                    <span class="badge badge--plan badge--plan-{{ c.plan or 'core' }}">{{ (c.plan or 'core') | capitalize }}</span>
+                  </td>
                   <td>
                     {% if c.assigned_dest_ids %}
                       <span class="badge badge--assigned">{{ c.assigned_dest_ids | length }} assigned</span>
@@ -314,6 +318,14 @@
       <div class="cust-detail-grid">
         <div class="cust-detail-item"><span class="cust-detail-label">Email</span><span id="cust-detail-email" class="cust-detail-value"></span></div>
         <div class="cust-detail-item"><span class="cust-detail-label">Joined</span><span id="cust-detail-joined" class="cust-detail-value"></span></div>
+        <div class="cust-detail-item">
+          <span class="cust-detail-label">Plan</span>
+          <select id="cust-detail-plan" class="status-select" style="margin-top:.3rem;">
+            <option value="core">Core</option>
+            <option value="pro">Pro</option>
+            <option value="managed">Managed</option>
+          </select>
+        </div>
         <div class="cust-detail-item cust-detail-item--full">
           <span class="cust-detail-label">Current rolling window</span>
           <span class="cust-detail-value">{{ month_names[rolling_window.prev[0]-1] }} {{ rolling_window.prev[1] }} &rarr; {{ month_names[rolling_window.current[0]-1] }} {{ rolling_window.current[1] }} &rarr; {{ month_names[rolling_window.next[0]-1] }} {{ rolling_window.next[1] }}</span>
@@ -345,7 +357,7 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-primary" onclick="saveCustomerNotes()">Save Notes</button>
+        <button class="btn btn-primary" onclick="saveCustomerDetail()">Save</button>
         <button class="btn btn-ghost-dark" onclick="closeCustomerDetail()">Close</button>
       </div>
     </div>
