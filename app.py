@@ -19,7 +19,7 @@ MONTH_NAMES = ["January","February","March","April","May","June",
                "July","August","September","October","November","December"]
 
 FILE_FIELDS = ["blog_docx","social_posts","promo_assets","guide_pdf",
-               "images_folder","canva_guide","canva_carousel","canva_pinterest"]
+               "images_folder","canva_guide","canva_carousel","canva_pinterest","video_reels"]
 
 # ─────────────────────────────────────────────
 # Helpers
@@ -536,11 +536,13 @@ def api_update_files(dest_id):
         cur.execute("""
             UPDATE destinations SET
                 blog_docx=%s, social_posts=%s, promo_assets=%s, guide_pdf=%s,
-                images_folder=%s, canva_guide=%s, canva_carousel=%s, canva_pinterest=%s
+                images_folder=%s, canva_guide=%s, canva_carousel=%s, canva_pinterest=%s,
+                video_reels=%s
             WHERE id=%s
         """, (body.get("blog_docx",""), body.get("social_posts",""), body.get("promo_assets",""),
               body.get("guide_pdf",""), body.get("images_folder",""), body.get("canva_guide",""),
-              body.get("canva_carousel",""), body.get("canva_pinterest",""), dest_id))
+              body.get("canva_carousel",""), body.get("canva_pinterest",""),
+              body.get("video_reels",""), dest_id))
         conn.commit(); cur.close(); conn.close()
         return jsonify({"success": True})
     except Exception as e:

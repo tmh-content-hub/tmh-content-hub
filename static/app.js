@@ -506,7 +506,7 @@ function openEditLinks(destId) {
     `Edit Links — ${TMH_MONTH_NAMES[dest.month-1]} ${dest.year}: ${dest.name}`;
 
   const fields = ["blog_docx","social_posts","promo_assets","guide_pdf",
-                  "images_folder","canva_guide","canva_carousel","canva_pinterest"];
+                  "images_folder","canva_guide","canva_carousel","canva_pinterest","video_reels"];
   fields.forEach(f => {
     const el = document.getElementById(`el-${f}`);
     if (el) el.value = dest.files?.[f] || "";
@@ -522,7 +522,7 @@ function closeEditLinks() {
 async function saveEditLinks() {
   const destId = document.getElementById("edit-links-dest-id").value;
   const fields = ["blog_docx","social_posts","promo_assets","guide_pdf",
-                  "images_folder","canva_guide","canva_carousel","canva_pinterest"];
+                  "images_folder","canva_guide","canva_carousel","canva_pinterest","video_reels"];
   const body = {};
   fields.forEach(f => {
     const el = document.getElementById(`el-${f}`);
