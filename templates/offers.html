@@ -27,7 +27,7 @@
       <div class="hero-text">
         <p class="hero-eyebrow">{{ plan | capitalize }} Plan</p>
         <h1 class="hero-heading">Submit Your Supplier Offers</h1>
-        <p class="hero-sub">Share supplier posts or holiday offers for us to turn into social content for you.</p>
+        <p class="hero-sub">Spotted a great deal in a supplier group? Send us the post copy and images — we'll turn it into ready-to-post social content for you.</p>
         <p style="margin-top:0.75rem; font-size:0.875rem; color:rgba(255,255,255,0.65);">
           {% if plan == 'pro' %}You can submit up to <strong style="color:#fff;">4 offers</strong> each month.
           {% else %}You can submit up to <strong style="color:#fff;">8 offers</strong> each month.{% endif %}
@@ -61,7 +61,7 @@
       </div>
       {% elif error == 'url' %}
       <div class="offer-limit-banner">
-        ⚠️ Please enter a supplier URL before submitting.
+        ⚠️ Please enter the supplier post URL before submitting.
       </div>
       {% endif %}
 
@@ -69,33 +69,42 @@
       {% if used < limit %}
       <div class="offer-form-card">
         <h2 class="offer-form-title">Add a New Offer</h2>
-        <p class="offer-form-hint">Paste the link to a supplier Facebook post, a holiday deal page, or any offer URL. Add any notes to help us understand what you'd like.</p>
+        <p class="offer-form-hint">Fill in as much or as little as you have. The more detail you give us, the better the content we can create.</p>
 
-        <form class="offer-form" method="POST" action="{{ url_for('submit_offer') }}">
+        <form class="offer-form" method="POST" action="{{ url_for('submit_offer') }}"
+              enctype="multipart/form-data">
 
           <div class="form-group">
-            <label>Supplier URL <span style="color:#dc2626;">*</span></label>
-            <input type="url" name="offer_url" placeholder="https://facebook.com/... or https://..." required />
-          </div>
-
-          <div class="offer-form-row">
-            <div class="form-group">
-              <label>Caption / Post Copy <span style="color:#888; font-weight:400;">(optional)</span></label>
-              <textarea name="caption" rows="3" placeholder="Paste the supplier's caption here if you'd like us to use or adapt it..."></textarea>
-            </div>
-            <div class="form-group">
-              <label>Notes for Us <span style="color:#888; font-weight:400;">(optional)</span></label>
-              <textarea name="notes" rows="3" placeholder="Anything we should know — dates, tone, specific angles..."></textarea>
-            </div>
+            <label>Supplier Post URL <span style="color:#dc2626;">*</span></label>
+            <input type="url" name="offer_url"
+                   placeholder="Paste the link to the Facebook post or offer page" required />
           </div>
 
           <div class="form-group">
-            <label>Image URL <span style="color:#888; font-weight:400;">(optional — Google Drive or Dropbox link)</span></label>
-            <input type="url" name="image_url" placeholder="https://drive.google.com/... (upload your image and paste the share link)" />
+            <label>Supplier Post Copy <span style="color:#888; font-weight:400;">(optional — paste the text from the post)</span></label>
+            <textarea name="caption" rows="4"
+                      placeholder="Copy and paste the supplier's post text here..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Notes for Us <span style="color:#888; font-weight:400;">(optional)</span></label>
+            <textarea name="notes" rows="2"
+                      placeholder="e.g. 'focus on the price', 'great for families', 'offer ends 30 April'..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Images <span style="color:#888; font-weight:400;">(optional — up to 6, images only)</span></label>
+            <p style="font-size:0.8rem; color:var(--muted); margin:-0.2rem 0 0.5rem;">
+              Save the images from the supplier post to your device, then select them here. JPG or PNG only — no GIFs, no PDFs.
+            </p>
+            <input type="file" name="images" id="images-input"
+                   accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                   multiple />
+            <p id="images-feedback" style="font-size:0.8rem;margin-top:0.35rem;display:none;"></p>
           </div>
 
           <div class="offer-form-actions">
-            <button type="submit" class="btn btn-primary">Submit Offer</button>
+            <button type="submit" class="btn btn-primary" id="submit-btn">Submit Offer</button>
             <span class="offer-limit-note">{{ limit - used }} offer{{ 's' if (limit - used) != 1 }} remaining this month</span>
           </div>
 
@@ -126,9 +135,13 @@
             {% if offer.notes %}
             <div class="offer-card-notes">Notes: {{ offer.notes }}</div>
             {% endif %}
-            {% if offer.image_url %}
-            <div class="offer-card-image">
-              📎 <a href="{{ offer.image_url }}" target="_blank" rel="noopener" style="color:var(--teal);">View attached image</a>
+            {% if offer.image_urls %}
+            <div class="offer-image-grid">
+              {% for img_url in offer.image_urls %}
+              <a href="{{ img_url }}" target="_blank" rel="noopener" title="View image {{ loop.index }}">
+                <img src="{{ img_url }}" class="offer-thumb" alt="Image {{ loop.index }}" />
+              </a>
+              {% endfor %}
             </div>
             {% endif %}
           </div>
@@ -159,5 +172,41 @@
 
   <div id="toast" class="toast" role="alert" aria-live="polite"></div>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script>
+    // Validate image selection: max 6, images only, no PDFs
+    document.getElementById('images-input')?.addEventListener('change', function () {
+      const files    = Array.from(this.files);
+      const feedback = document.getElementById('images-feedback');
+      const btn      = document.getElementById('submit-btn');
+
+      const allowed = ['image/jpeg','image/png'];
+      const invalid = files.filter(f => !allowed.includes(f.type));
+      if (invalid.length > 0) {
+        feedback.textContent = '⚠️ JPG or PNG files only — no GIFs, PDFs or other file types.';
+        feedback.style.color = '#dc2626';
+        feedback.style.display = 'block';
+        this.value = ''; btn.disabled = false; return;
+      }
+      if (files.length > 6) {
+        feedback.textContent = '⚠️ Maximum 6 images — please select up to 6.';
+        feedback.style.color = '#dc2626';
+        feedback.style.display = 'block';
+        this.value = ''; btn.disabled = false; return;
+      }
+      if (files.length > 0) {
+        feedback.textContent = `✅ ${files.length} image${files.length > 1 ? 's' : ''} selected.`;
+        feedback.style.color = '#166534';
+        feedback.style.display = 'block';
+      } else {
+        feedback.style.display = 'none';
+      }
+    });
+
+    // Show uploading state on submit
+    document.querySelector('.offer-form')?.addEventListener('submit', function () {
+      const btn = document.getElementById('submit-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+    });
+  </script>
 </body>
 </html>

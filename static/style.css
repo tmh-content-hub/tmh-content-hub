@@ -1193,6 +1193,33 @@ a:hover { text-decoration: underline; }
   color: var(--text);
 }
 
+/* Image thumbnails in submitted offer cards */
+.offer-image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.offer-thumb {
+  width: 90px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.offer-thumb:hover { opacity: 0.82; }
+
+input[type="file"] {
+  font-size: 0.875rem;
+  color: var(--text);
+  padding: 0.4rem 0;
+  cursor: pointer;
+}
+
 /* ── Responsive tweaks ───────────────────────────────── */
 @media (max-width: 640px) {
   .hero-inner { flex-direction: column; align-items: flex-start; }

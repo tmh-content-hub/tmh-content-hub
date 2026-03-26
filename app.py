@@ -3,6 +3,7 @@ import json
 import hashlib
 import psycopg2
 import psycopg2.extras
+import urllib.request as urllib_req
 from datetime import date, datetime
 from functools import wraps
 from flask import (
@@ -22,6 +23,25 @@ FILE_FIELDS = ["blog_docx","social_posts","promo_assets","guide_pdf",
                "images_folder","canva_guide","canva_carousel","canva_pinterest","video_reels"]
 
 OFFER_LIMITS = {"core": 0, "pro": 4, "managed": 8}
+
+SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+ALLOWED_IMAGE_TYPES  = {"image/jpeg","image/png"}
+
+def upload_image(file_bytes, path, content_type):
+    """Upload a file to Supabase Storage and return its public URL."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return None
+    try:
+        url = f"{SUPABASE_URL}/storage/v1/object/offer-images/{path}"
+        req = urllib_req.Request(url, data=file_bytes, method="POST")
+        req.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_KEY}")
+        req.add_header("Content-Type", content_type or "image/jpeg")
+        req.add_header("x-upsert", "true")
+        urllib_req.urlopen(req)
+        return f"{SUPABASE_URL}/storage/v1/object/public/offer-images/{path}"
+    except Exception:
+        return None
 
 # ─────────────────────────────────────────────
 # Helpers
@@ -346,18 +366,33 @@ def submit_offer():
         if not offer_url:
             cur.close(); conn.close()
             return redirect(url_for("offers") + "?error=url")
-        caption   = request.form.get("caption", "").strip()
-        notes     = request.form.get("notes", "").strip()
-        image_url = request.form.get("image_url", "").strip()
-        offer_id  = f"offer_{int(datetime.utcnow().timestamp() * 1000)}"
+        caption  = request.form.get("caption", "").strip()
+        notes    = request.form.get("notes", "").strip()
+        offer_id = f"offer_{int(datetime.utcnow().timestamp() * 1000)}"
+
+        # Handle image uploads (up to 6, images only)
+        uploaded_urls = []
+        files = request.files.getlist("images")
+        for i, f in enumerate(files[:6]):
+            if not f or not f.filename:
+                continue
+            ct  = f.content_type or ""
+            ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else "jpg"
+            if ct not in ALLOWED_IMAGE_TYPES and not ct.startswith("image/"):
+                continue
+            path = f"{session['user_id']}/{offer_id}_{i}.{ext}"
+            url  = upload_image(f.read(), path, ct)
+            if url:
+                uploaded_urls.append(url)
+
         cur.execute("""
             INSERT INTO supplier_offers
-                (id, customer_id, submitted_at, month, year, offer_url, caption, notes, image_url)
+                (id, customer_id, submitted_at, month, year, offer_url, caption, notes, image_urls)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (offer_id, session["user_id"],
               datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
               today.month, today.year,
-              offer_url, caption, notes, image_url))
+              offer_url, caption, notes, uploaded_urls))
         conn.commit(); cur.close(); conn.close()
         return redirect(url_for("offers") + "?success=1")
     except Exception as e:

@@ -297,9 +297,14 @@
                     {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
                   </td>
                   <td>
-                    {% if o.image_url %}
-                    <a href="{{ o.image_url }}" target="_blank" rel="noopener"
-                       class="btn btn-sm btn-outline" style="font-size:.75rem;">View</a>
+                    {% if o.image_urls %}
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                      {% for img in o.image_urls %}
+                      <a href="{{ img }}" target="_blank" rel="noopener">
+                        <img src="{{ img }}" style="width:40px;height:32px;object-fit:cover;border-radius:3px;border:1px solid var(--border);" alt="img" />
+                      </a>
+                      {% endfor %}
+                    </div>
                     {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
                   </td>
                   <td class="actions-cell">
