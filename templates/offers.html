@@ -27,15 +27,15 @@
       <div class="hero-text">
         <p class="hero-eyebrow">{{ plan | capitalize }} Plan</p>
         <h1 class="hero-heading">Submit Your Supplier Offers</h1>
-        <p class="hero-sub">Spotted a great deal in a supplier group? Send us the post copy and images — we'll turn it into ready-to-post social content for you.</p>
+        <p class="hero-sub">Spotted a great deal in a supplier group? Send us the post copy and images — we'll turn it into a <strong style="color:#fff;">scroll-stopping reel</strong> ready to post.</p>
         <p style="margin-top:0.75rem; font-size:0.875rem; color:rgba(255,255,255,0.65);">
-          {% if plan == 'pro' %}You can submit up to <strong style="color:#fff;">4 offers</strong> each month.
-          {% else %}You can submit up to <strong style="color:#fff;">8 offers</strong> each month.{% endif %}
+          {% if plan == 'pro' %}You can submit up to <strong style="color:#fff;">4 reels</strong> each month.
+          {% else %}You can submit up to <strong style="color:#fff;">8 reels</strong> each month.{% endif %}
         </p>
       </div>
       <div class="offers-usage">
         <div class="offers-usage-count">{{ used }} / {{ limit }}</div>
-        <div class="offers-usage-label">Used this month</div>
+        <div class="offers-usage-label">Reels submitted</div>
         <div class="offers-usage-bar">
           <div class="offers-usage-fill {% if used >= limit %}offers-usage-fill--full{% endif %}"
                style="width: {{ [(used / limit * 100), 100] | min | int }}%"></div>
@@ -63,13 +63,17 @@
       <div class="offer-limit-banner">
         ⚠️ Please enter the supplier post URL before submitting.
       </div>
+      {% elif error == 'images' %}
+      <div class="offer-limit-banner">
+        ⚠️ Please attach at least one image — we need the images to build your reel.
+      </div>
       {% endif %}
 
       <!-- Submission form -->
       {% if used < limit %}
       <div class="offer-form-card">
-        <h2 class="offer-form-title">Add a New Offer</h2>
-        <p class="offer-form-hint">Fill in as much or as little as you have. The more detail you give us, the better the content we can create.</p>
+        <h2 class="offer-form-title">Submit a Supplier Offer</h2>
+        <p class="offer-form-hint">Paste the supplier post URL and copy the post text below — we'll use it to create your scroll-stopping reel.</p>
 
         <form class="offer-form" method="POST" action="{{ url_for('submit_offer') }}"
               enctype="multipart/form-data">
@@ -81,31 +85,25 @@
           </div>
 
           <div class="form-group">
-            <label>Supplier Post Copy <span style="color:#888; font-weight:400;">(optional — paste the text from the post)</span></label>
-            <textarea name="caption" rows="4"
-                      placeholder="Copy and paste the supplier's post text here..."></textarea>
+            <label>Supplier Post Copy <span style="color:#dc2626;">*</span></label>
+            <textarea name="caption" rows="5"
+                      placeholder="Copy and paste the supplier's post text here..." required></textarea>
           </div>
 
           <div class="form-group">
-            <label>Notes for Us <span style="color:#888; font-weight:400;">(optional)</span></label>
-            <textarea name="notes" rows="2"
-                      placeholder="e.g. 'focus on the price', 'great for families', 'offer ends 30 April'..."></textarea>
-          </div>
-
-          <div class="form-group">
-            <label>Images <span style="color:#888; font-weight:400;">(optional — up to 6, images only)</span></label>
+            <label>Images <span style="color:#dc2626;">*</span></label>
             <p style="font-size:0.8rem; color:var(--muted); margin:-0.2rem 0 0.5rem;">
-              Save the images from the supplier post to your device, then select them here. JPG or PNG only — no GIFs, no PDFs.
+              We need the images to build your reel. Save them from the supplier post to your device first, then select up to 6 here. JPG or PNG only.
             </p>
             <input type="file" name="images" id="images-input"
                    accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                   multiple />
+                   multiple required />
             <p id="images-feedback" style="font-size:0.8rem;margin-top:0.35rem;display:none;"></p>
           </div>
 
           <div class="offer-form-actions">
             <button type="submit" class="btn btn-primary" id="submit-btn">Submit Offer</button>
-            <span class="offer-limit-note">{{ limit - used }} offer{{ 's' if (limit - used) != 1 }} remaining this month</span>
+            <span class="offer-limit-note">{{ limit - used }} reel{{ 's' if (limit - used) != 1 }} remaining this month</span>
           </div>
 
         </form>
