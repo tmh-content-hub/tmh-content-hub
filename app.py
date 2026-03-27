@@ -368,12 +368,20 @@ def submit_offer():
             return redirect(url_for("offers") + "?error=url")
         caption  = request.form.get("caption", "").strip()
         notes    = request.form.get("notes", "").strip()
+
+        # Validate images present
+        files = request.files.getlist("images")
+        valid_files = [f for f in files[:6] if f and f.filename and
+                       (f.content_type in ALLOWED_IMAGE_TYPES)]
+        if not valid_files:
+            cur.close(); conn.close()
+            return redirect(url_for("offers") + "?error=images")
+
         offer_id = f"offer_{int(datetime.utcnow().timestamp() * 1000)}"
 
         # Handle image uploads (up to 6, images only)
         uploaded_urls = []
-        files = request.files.getlist("images")
-        for i, f in enumerate(files[:6]):
+        for i, f in enumerate(valid_files):
             if not f or not f.filename:
                 continue
             ct  = f.content_type or ""
