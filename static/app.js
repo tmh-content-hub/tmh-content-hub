@@ -565,8 +565,11 @@ async function saveEditLinks() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
-    const json = await res.json();
-    if (json.success) {
+    let json;
+    try { json = await res.json(); } catch(_) { json = {}; }
+    if (res.status === 401) {
+      showToast("Session expired — please refresh the page and log in again.", true);
+    } else if (json.success) {
       const dest = TMH_DATA.all_destinations.find(d => d.id === destId);
       if (dest) Object.assign(dest.files, body);
       closeEditLinks();
@@ -575,7 +578,7 @@ async function saveEditLinks() {
       showToast(json.error || "Save failed — please try again.", true);
     }
   } catch(e) {
-    showToast("Network error — links not saved.", true);
+    showToast("Network error — please check your connection and try again.", true);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "Save Links"; }
   }

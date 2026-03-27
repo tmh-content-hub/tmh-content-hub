@@ -27,6 +27,7 @@ OFFER_LIMITS = {"core": 0, "pro": 4, "managed": 8}
 SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 ALLOWED_IMAGE_TYPES  = {"image/jpeg","image/png"}
+HIGHLEVEL_WEBHOOK_URL = os.environ.get("HIGHLEVEL_WEBHOOK_URL", "")
 
 def upload_image(file_bytes, path, content_type):
     """Upload a file to Supabase Storage and return its public URL."""
@@ -42,6 +43,35 @@ def upload_image(file_bytes, path, content_type):
         return f"{SUPABASE_URL}/storage/v1/object/public/offer-images/{path}"
     except Exception:
         return None
+
+def fire_hl_webhook(customer_name, customer_email, plan, offer_url, caption, image_count, submitted_at):
+    """POST offer submission details to HighLevel inbound webhook (silent fail)."""
+    if not HIGHLEVEL_WEBHOOK_URL:
+        return
+    try:
+        payload = json.dumps({
+            "event":          "offer_submitted",
+            "name":           customer_name,
+            "email":          customer_email,
+            "plan":           plan,
+            "offer_url":      offer_url,
+            "caption":        caption,
+            "image_count":    image_count,
+            "submitted_at":   submitted_at,
+            "note": (
+                f"New supplier offer submitted via TMH Content Hub.\n\n"
+                f"Plan: {plan.capitalize()}\n"
+                f"Offer URL: {offer_url}\n"
+                f"Images uploaded: {image_count}\n"
+                f"Post copy:\n{caption}\n\n"
+                f"Submitted: {submitted_at}"
+            ),
+        }).encode("utf-8")
+        req = urllib_req.Request(HIGHLEVEL_WEBHOOK_URL, data=payload, method="POST")
+        req.add_header("Content-Type", "application/json")
+        urllib_req.urlopen(req, timeout=5)
+    except Exception:
+        pass  # Never block a submission if HL is unreachable
 
 # ─────────────────────────────────────────────
 # Helpers
@@ -96,6 +126,15 @@ def admin_required(f):
     def decorated(*args, **kwargs):
         if "user_id" not in session or session.get("role") != "admin":
             return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+def api_admin_required(f):
+    """Like admin_required but returns JSON 401 instead of redirecting — for API/fetch routes."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user_id" not in session or session.get("role") != "admin":
+            return jsonify({"error": "Session expired — please refresh and log in again."}), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -286,7 +325,7 @@ def dashboard():
 @app.route("/api/change-password", methods=["POST"])
 @login_required
 def api_customer_change_password():
-    body   = request.get_json()
+    body   = request.get_json(force=True, silent=True)
     current = body.get("current_password","")
     new_pw  = body.get("new_password","").strip()
     if len(new_pw) < 6:
@@ -348,9 +387,11 @@ def submit_offer():
     try:
         conn = get_db()
         cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT plan FROM customers WHERE id=%s", (session["user_id"],))
+        cur.execute("SELECT name, email, plan FROM customers WHERE id=%s", (session["user_id"],))
         cust  = cur.fetchone()
         plan  = (cust["plan"] if cust else None) or "core"
+        cust_name  = cust["name"]  if cust else ""
+        cust_email = cust["email"] if cust else ""
         limit = OFFER_LIMITS.get(plan, 0)
         if limit == 0:
             cur.close(); conn.close()
@@ -401,7 +442,20 @@ def submit_offer():
               datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
               today.month, today.year,
               offer_url, caption, notes, uploaded_urls))
+        submitted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         conn.commit(); cur.close(); conn.close()
+
+        # Notify HighLevel — silent fail
+        fire_hl_webhook(
+            customer_name  = cust_name,
+            customer_email = cust_email,
+            plan           = plan,
+            offer_url      = offer_url,
+            caption        = caption,
+            image_count    = len(uploaded_urls),
+            submitted_at   = submitted_at,
+        )
+
         return redirect(url_for("offers") + "?success=1")
     except Exception as e:
         return f"<h2>Submit error</h2><pre>{e}</pre>", 500
@@ -419,7 +473,7 @@ def api_delete_my_offer(offer_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/offers/<offer_id>", methods=["DELETE"])
-@admin_required
+@api_admin_required
 def api_admin_delete_offer(offer_id):
     try:
         conn = get_db(); cur = conn.cursor()
@@ -524,9 +578,9 @@ def admin_panel():
 # ─────────────────────────────────────────────
 
 @app.route("/admin/api/customers", methods=["POST"])
-@admin_required
+@api_admin_required
 def api_add_customer():
-    body     = request.get_json()
+    body     = request.get_json(force=True, silent=True)
     name     = body.get("name","").strip()
     email    = body.get("email","").strip().lower()
     password = body.get("password","").strip()
@@ -555,7 +609,7 @@ def api_add_customer():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/customers/<cust_id>", methods=["DELETE"])
-@admin_required
+@api_admin_required
 def api_delete_customer(cust_id):
     try:
         conn = get_db(); cur = conn.cursor()
@@ -566,9 +620,9 @@ def api_delete_customer(cust_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/customers/<cust_id>/password", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_reset_password(cust_id):
-    body = request.get_json()
+    body = request.get_json(force=True, silent=True)
     pw   = body.get("password","").strip()
     if not pw:
         return jsonify({"error": "Password required."}), 400
@@ -581,9 +635,9 @@ def api_reset_password(cust_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/customers/<cust_id>/notes", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_update_notes(cust_id):
-    body  = request.get_json()
+    body  = request.get_json(force=True, silent=True)
     notes = body.get("notes","")
     try:
         conn = get_db(); cur = conn.cursor()
@@ -594,9 +648,9 @@ def api_update_notes(cust_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/customers/<cust_id>/plan", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_update_plan(cust_id):
-    body = request.get_json()
+    body = request.get_json(force=True, silent=True)
     plan = body.get("plan", "core")
     if plan not in ["core","pro","managed"]:
         return jsonify({"error": "Invalid plan."}), 400
@@ -609,9 +663,9 @@ def api_update_plan(cust_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/customers/<cust_id>/assign", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_assign_dest(cust_id):
-    body    = request.get_json()
+    body    = request.get_json(force=True, silent=True)
     dest_id = body.get("dest_id","")
     try:
         conn = get_db()
@@ -631,9 +685,9 @@ def api_assign_dest(cust_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/customers/<cust_id>/unassign", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_unassign_dest(cust_id):
-    body    = request.get_json()
+    body    = request.get_json(force=True, silent=True)
     dest_id = body.get("dest_id","")
     try:
         conn = get_db()
@@ -655,9 +709,9 @@ def api_unassign_dest(cust_id):
 # ─────────────────────────────────────────────
 
 @app.route("/admin/api/destinations", methods=["POST"])
-@admin_required
+@api_admin_required
 def api_add_destination():
-    body   = request.get_json()
+    body   = request.get_json(force=True, silent=True)
     name   = body.get("name","").strip()
     flag   = body.get("flag","🌍").strip() or "🌍"
     month  = int(body.get("month", 1))
@@ -691,7 +745,7 @@ def api_add_destination():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/destinations/<dest_id>", methods=["DELETE"])
-@admin_required
+@api_admin_required
 def api_delete_destination(dest_id):
     try:
         conn = get_db(); cur = conn.cursor()
@@ -702,9 +756,9 @@ def api_delete_destination(dest_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/destinations/<dest_id>/files", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_update_files(dest_id):
-    body = request.get_json()
+    body = request.get_json(force=True, silent=True)
     try:
         conn = get_db(); cur = conn.cursor()
         cur.execute("""
@@ -723,9 +777,9 @@ def api_update_files(dest_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/destinations/<dest_id>/status", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_update_status(dest_id):
-    body   = request.get_json()
+    body   = request.get_json(force=True, silent=True)
     status = body.get("status","ready")
     try:
         conn = get_db(); cur = conn.cursor()
@@ -736,7 +790,7 @@ def api_update_status(dest_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/destinations/<dest_id>/archive", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_archive_destination(dest_id):
     try:
         conn = get_db(); cur = conn.cursor()
@@ -747,9 +801,9 @@ def api_archive_destination(dest_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/api/destinations/<dest_id>/reinstate", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_reinstate_destination(dest_id):
-    body  = request.get_json()
+    body  = request.get_json(force=True, silent=True)
     month = int(body.get("month", 1))
     year  = int(body.get("year", date.today().year))
     try:
@@ -778,9 +832,9 @@ def api_reinstate_destination(dest_id):
 # ─────────────────────────────────────────────
 
 @app.route("/admin/api/admin-password", methods=["PUT"])
-@admin_required
+@api_admin_required
 def api_change_admin_password():
-    body    = request.get_json()
+    body    = request.get_json(force=True, silent=True)
     current = body.get("current_password","")
     new_pw  = body.get("new_password","").strip()
     if len(new_pw) < 6:
