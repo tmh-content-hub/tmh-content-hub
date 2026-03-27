@@ -65,7 +65,7 @@
       </div>
       {% elif error == 'images' %}
       <div class="offer-limit-banner">
-        ⚠️ Please attach at least one image — we need the images to build your reel.
+        ⚠️ Please attach at least 6 images — we need them to build your reel. Save the images from the supplier post to your device first, then upload them here.
       </div>
       {% endif %}
 
@@ -93,7 +93,7 @@
           <div class="form-group">
             <label>Images <span style="color:#dc2626;">*</span></label>
             <p style="font-size:0.8rem; color:var(--muted); margin:-0.2rem 0 0.5rem;">
-              We need the images to build your reel. Save them from the supplier post to your device first, then select up to 6 here. JPG or PNG only.
+              We need the images to build your reel. Save them from the supplier post to your device first, then select <strong>at least 6</strong> here (you can send more — we'll pick the best 6). JPG or PNG only.
             </p>
             <input type="file" name="images" id="images-input"
                    accept="image/jpeg,image/png,.jpg,.jpeg,.png"
@@ -185,14 +185,15 @@
         feedback.style.display = 'block';
         this.value = ''; btn.disabled = false; return;
       }
-      if (files.length > 6) {
-        feedback.textContent = '⚠️ Maximum 6 images — please select up to 6.';
+      if (files.length > 0 && files.length < 6) {
+        feedback.textContent = `⚠️ Please select at least 6 images — you've selected ${files.length}. We need a minimum of 6 to build your reel.`;
         feedback.style.color = '#dc2626';
         feedback.style.display = 'block';
-        this.value = ''; btn.disabled = false; return;
+        btn.disabled = true; return;
       }
-      if (files.length > 0) {
-        feedback.textContent = `✅ ${files.length} image${files.length > 1 ? 's' : ''} selected.`;
+      btn.disabled = false;
+      if (files.length >= 6) {
+        feedback.textContent = `✅ ${files.length} image${files.length > 1 ? 's' : ''} selected — great, we'll pick the best 6.`;
         feedback.style.color = '#166534';
         feedback.style.display = 'block';
       } else {

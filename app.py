@@ -369,11 +369,11 @@ def submit_offer():
         caption  = request.form.get("caption", "").strip()
         notes    = request.form.get("notes", "").strip()
 
-        # Validate images present
+        # Validate images present — minimum 6 required
         files = request.files.getlist("images")
-        valid_files = [f for f in files[:6] if f and f.filename and
+        valid_files = [f for f in files if f and f.filename and
                        (f.content_type in ALLOWED_IMAGE_TYPES)]
-        if not valid_files:
+        if len(valid_files) < 6:
             cur.close(); conn.close()
             return redirect(url_for("offers") + "?error=images")
 
