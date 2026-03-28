@@ -13,6 +13,7 @@ from flask import (
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "tmh-dev-secret-change-in-production")
+app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 30  # 30 days
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 DATA_FILE = os.path.join(os.path.dirname(__file__), "data.json")
 
@@ -124,7 +125,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if "user_id" not in session or session.get("role") != "admin":
+        if session.get("admin_role") != "admin":
             return redirect(url_for("admin_login"))
         return f(*args, **kwargs)
     return decorated
@@ -133,8 +134,8 @@ def api_admin_required(f):
     """Like admin_required but returns JSON 401 instead of redirecting — for API/fetch routes."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        if "user_id" not in session or session.get("role") != "admin":
-            return jsonify({"error": "Session expired — please refresh and log in again."}), 401
+        if session.get("admin_role") != "admin":
+            return jsonify({"error": "Session expired — please refresh the admin page and log in again."}), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -228,10 +229,11 @@ def login():
                             (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"), customer["id"]))
                 conn.commit()
                 cur.close(); conn.close()
-                session.clear()
+                # Don't session.clear() — that would wipe any active admin session
                 session["user_id"]   = customer["id"]
                 session["user_name"] = customer["name"]
                 session["role"]      = "customer"
+                session.permanent    = True
                 return redirect(url_for("dashboard"))
             cur.close(); conn.close()
         except Exception as e:
@@ -489,7 +491,7 @@ def api_admin_delete_offer(offer_id):
 
 @app.route("/admin/login", methods=["GET","POST"])
 def admin_login():
-    if "user_id" in session and session.get("role") == "admin":
+    if session.get("admin_role") == "admin":
         return redirect(url_for("admin_panel"))
     error = None
     if request.method == "POST":
@@ -504,10 +506,11 @@ def admin_login():
             r = cur.fetchone(); stored_hash = r["value"] if r else ""
             cur.close(); conn.close()
             if username == stored_user and check_password(password, stored_hash):
-                session.clear()
-                session["user_id"]   = "admin"
-                session["user_name"] = "Admin"
-                session["role"]      = "admin"
+                # Use admin_role/admin_user_id so customer logins don't wipe admin session
+                session["admin_user_id"] = "admin"
+                session["admin_user_name"] = "Admin"
+                session["admin_role"]    = "admin"
+                session.permanent = True
                 return redirect(url_for("admin_panel"))
         except Exception as e:
             return render_template("admin_login.html", error=f"Database error: {e}")
@@ -516,7 +519,9 @@ def admin_login():
 
 @app.route("/admin/logout")
 def admin_logout():
-    session.clear()
+    session.pop("admin_user_id", None)
+    session.pop("admin_user_name", None)
+    session.pop("admin_role", None)
     return redirect(url_for("admin_login"))
 
 # ─────────────────────────────────────────────
