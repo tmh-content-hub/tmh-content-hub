@@ -29,6 +29,7 @@ SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 ALLOWED_IMAGE_TYPES  = {"image/jpeg","image/png"}
 HIGHLEVEL_WEBHOOK_URL = os.environ.get("HIGHLEVEL_WEBHOOK_URL", "")
+OPENAI_API_KEY        = os.environ.get("Render_Claude_Video_Reels", "")
 
 def upload_image(file_bytes, path, content_type):
     """Upload a file to Supabase Storage and return its public URL."""
@@ -482,6 +483,76 @@ def api_admin_delete_offer(offer_id):
         cur.execute("DELETE FROM supplier_offers WHERE id=%s", (offer_id,))
         conn.commit(); cur.close(); conn.close()
         return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/offers/<offer_id>/generate-copy", methods=["POST"])
+@api_admin_required
+def api_generate_reel_copy(offer_id):
+    """Call OpenAI to generate reel overlay copy from the offer's caption."""
+    if not OPENAI_API_KEY:
+        return jsonify({"error": "OpenAI API key (Render_Claude_Video_Reels) not set in Render environment variables."}), 500
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT caption, offer_url FROM supplier_offers WHERE id=%s", (offer_id,))
+        offer = cur.fetchone()
+        cur.close(); conn.close()
+        if not offer:
+            return jsonify({"error": "Offer not found."}), 404
+        caption = offer["caption"] or ""
+        prompt = f"""You are a social media copywriter for a travel agency creating short-form video reel overlay text.
+
+From the supplier offer below, generate punchy overlay copy for a travel reel.
+
+Return ONLY valid JSON — no markdown, no code fences — in exactly this format:
+{{
+  "headline": "max 6 words, bold benefit-led hook",
+  "overlays": [
+    "max 4 words",
+    "max 4 words",
+    "max 4 words",
+    "max 4 words",
+    "max 4 words"
+  ],
+  "cta": "max 5 words, action-oriented"
+}}
+
+Rules:
+- Headline: the biggest selling point or saving — punchy, exciting
+- Overlays: key facts only — destination, dates, duration, board basis, price/saving, family/pax info. Each line max 4 words.
+- CTA: e.g. "Book before it goes!" or "Message us today!"
+- No hashtags. No emojis. No full sentences.
+
+Supplier offer:
+{caption}"""
+
+        payload = json.dumps({
+            "model": "gpt-4o-mini",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7,
+            "max_tokens": 300,
+        }).encode("utf-8")
+
+        req = urllib_req.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=payload, method="POST"
+        )
+        req.add_header("Authorization", f"Bearer {OPENAI_API_KEY}")
+        req.add_header("Content-Type", "application/json")
+
+        with urllib_req.urlopen(req, timeout=20) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+
+        raw = result["choices"][0]["message"]["content"].strip()
+        # Strip any accidental markdown fences
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        copy_data = json.loads(raw)
+        return jsonify({"success": True, "copy": copy_data})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
