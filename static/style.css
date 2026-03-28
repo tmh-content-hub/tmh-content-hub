@@ -1318,6 +1318,86 @@ a:hover { text-decoration: underline; }
 }
 .btn-img-download:hover, .btn-img-view:hover { background: #fff; }
 
+/* Generate copy button */
+.btn-generate-copy {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-generate-copy:hover { opacity: .88; }
+.btn-generate-copy:disabled { opacity: .55; cursor: wait; }
+
+/* Generated copy panel */
+.generated-copy-panel {
+  margin-top: 1rem;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+.generated-copy-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #7c3aed;
+  margin-bottom: 0.65rem;
+}
+.generated-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+  flex-wrap: wrap;
+}
+.generated-copy-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9333ea;
+  min-width: 68px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.generated-copy-value {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.generated-copy-overlays { margin-bottom: 0.1rem; }
+.btn-copy-line {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-copy-line:hover { background: #ddd6fe; }
+.btn-copy-all-copy {
+  margin-top: 0.65rem;
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity .15s;
+}
+.btn-copy-all-copy:hover { opacity: .88; }
+
 /* Image thumbnails in submitted offer cards */
 .offer-image-grid {
   display: flex;

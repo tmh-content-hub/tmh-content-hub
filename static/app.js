@@ -710,6 +710,61 @@ function copyCaption(elemId) {
   });
 }
 
+async function generateReelCopy(offerId) {
+  const btn   = document.getElementById(`gen-btn-${offerId}`);
+  const panel = document.getElementById(`copy-panel-${offerId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
+  try {
+    const res  = await fetch(`/admin/api/offers/${offerId}/generate-copy`, { method: "POST" });
+    let json;
+    try { json = await res.json(); } catch(_) { json = {}; }
+    if (res.status === 401) { showToast("Session expired — please refresh.", true); return; }
+    if (!json.success) { showToast(json.error || "Generation failed.", true); return; }
+    const c = json.copy;
+    document.getElementById(`copy-headline-${offerId}`).textContent = c.headline || "";
+    document.getElementById(`copy-cta-${offerId}`).textContent      = c.cta || "";
+    const overlaysEl = document.getElementById(`copy-overlays-${offerId}`);
+    overlaysEl.innerHTML = (c.overlays || []).map((line, i) => `
+      <div class="generated-copy-row">
+        <span class="generated-copy-label">Overlay ${i + 1}</span>
+        <span id="copy-ov-${offerId}-${i}" class="generated-copy-value">${escHtml(line)}</span>
+        <button class="btn-copy-line" onclick="copyLine('copy-ov-${offerId}-${i}')">Copy</button>
+      </div>`).join("");
+    if (panel) panel.style.display = "";
+    if (btn) btn.textContent = '✨ Regenerate';
+    showToast("Reel copy generated ✅");
+  } catch(e) {
+    showToast("Network error — could not generate copy.", true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function copyLine(elemId) {
+  const el = document.getElementById(elemId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim())
+    .then(() => showToast("Copied ✅"))
+    .catch(() => showToast("Copy failed", true));
+}
+
+function copyAllCopy(offerId) {
+  const headline = document.getElementById(`copy-headline-${offerId}`)?.textContent || "";
+  const cta      = document.getElementById(`copy-cta-${offerId}`)?.textContent || "";
+  const overlays = [];
+  let i = 0;
+  while (true) {
+    const el = document.getElementById(`copy-ov-${offerId}-${i}`);
+    if (!el) break;
+    overlays.push(el.textContent);
+    i++;
+  }
+  const text = `HEADLINE:\n${headline}\n\nOVERLAY LINES:\n${overlays.join("\n")}\n\nCTA:\n${cta}`;
+  navigator.clipboard.writeText(text)
+    .then(() => showToast("All copy copied to clipboard ✅"))
+    .catch(() => showToast("Copy failed", true));
+}
+
 async function downloadOfferImages(offerId) {
   const card = document.getElementById(`offer-row-${offerId}`);
   if (!card) return;

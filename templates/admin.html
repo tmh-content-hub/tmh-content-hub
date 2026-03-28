@@ -296,6 +296,8 @@
                           onclick="downloadOfferImages('{{ o.id }}')"
                           data-offer-id="{{ o.id }}">⬇ Download Images</button>
                   {% endif %}
+                  <button class="btn btn-sm btn-generate-copy" id="gen-btn-{{ o.id }}"
+                          onclick="generateReelCopy('{{ o.id }}')">✨ Generate Copy</button>
                   <button class="btn btn-sm btn-danger" onclick="adminDeleteOffer('{{ o.id }}', '{{ o.customer_name }}')">Delete</button>
                 </div>
               </div>
@@ -308,6 +310,23 @@
                     <button class="btn-copy-caption" onclick="copyCaption('caption-{{ o.id }}')" title="Copy to clipboard">Copy</button>
                   </div>
                   <div class="admin-offer-caption" id="caption-{{ o.id }}">{{ o.caption or '—' }}</div>
+
+                  <!-- Generated copy panel — hidden until generated -->
+                  <div id="copy-panel-{{ o.id }}" class="generated-copy-panel" style="display:none;">
+                    <div class="generated-copy-title">✨ Generated Reel Copy</div>
+                    <div class="generated-copy-row">
+                      <span class="generated-copy-label">Headline</span>
+                      <span id="copy-headline-{{ o.id }}" class="generated-copy-value"></span>
+                      <button class="btn-copy-line" onclick="copyLine('copy-headline-{{ o.id }}')">Copy</button>
+                    </div>
+                    <div id="copy-overlays-{{ o.id }}" class="generated-copy-overlays"></div>
+                    <div class="generated-copy-row">
+                      <span class="generated-copy-label">CTA</span>
+                      <span id="copy-cta-{{ o.id }}" class="generated-copy-value"></span>
+                      <button class="btn-copy-line" onclick="copyLine('copy-cta-{{ o.id }}')">Copy</button>
+                    </div>
+                    <button class="btn-copy-all-copy" onclick="copyAllCopy('{{ o.id }}')">📋 Copy All</button>
+                  </div>
                 </div>
 
                 <!-- Images 3-col grid -->
