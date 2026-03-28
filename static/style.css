@@ -1384,7 +1384,7 @@ a:hover { text-decoration: underline; }
 }
 .btn-copy-line:hover { background: #ddd6fe; }
 .btn-copy-all-copy {
-  margin-top: 0.65rem;
+  margin-top: 0;
   background: #7c3aed;
   color: #fff;
   border: none;
@@ -1393,10 +1393,13 @@ a:hover { text-decoration: underline; }
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  width: 100%;
+  flex: 1;
   transition: opacity .15s;
 }
 .btn-copy-all-copy:hover { opacity: .88; }
+.btn-download-txt {
+  background: #0f766e;
+}
 
 /* Image thumbnails in submitted offer cards */
 .offer-image-grid {

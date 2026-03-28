@@ -765,6 +765,35 @@ function copyAllCopy(offerId) {
     .catch(() => showToast("Copy failed", true));
 }
 
+function downloadCopyAsTxt(offerId) {
+  const headline = document.getElementById(`copy-headline-${offerId}`)?.textContent || "";
+  const cta      = document.getElementById(`copy-cta-${offerId}`)?.textContent || "";
+  const overlays = [];
+  let i = 0;
+  while (true) {
+    const el = document.getElementById(`copy-ov-${offerId}-${i}`);
+    if (!el) break;
+    overlays.push(el.textContent);
+    i++;
+  }
+  const text = `HEADLINE:\n${headline}\n\nOVERLAY LINES:\n${overlays.join("\n")}\n\nCTA:\n${cta}`;
+  // Build filename from card DOM (same logic as image ZIP)
+  const card   = document.getElementById(`offer-row-${offerId}`);
+  const nameEl = card ? card.querySelector('.admin-offer-who strong') : null;
+  const metaEl = card ? card.querySelector('.admin-offer-meta') : null;
+  const custName = nameEl ? nameEl.textContent.trim().replace(/\s+/g, '-').toLowerCase() : 'customer';
+  const month    = metaEl ? metaEl.textContent.split('·')[1]?.trim().replace(/\s+/g, '-') : '';
+  const filename = month ? `${custName}-${month}-reel-copy.txt` : `${custName}-reel-copy.txt`;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast(`✅ Copy saved as ${filename}`);
+}
+
 async function downloadOfferImages(offerId) {
   const card = document.getElementById(`offer-row-${offerId}`);
   if (!card) return;

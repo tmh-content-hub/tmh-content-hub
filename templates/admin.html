@@ -325,7 +325,10 @@
                       <span id="copy-cta-{{ o.id }}" class="generated-copy-value"></span>
                       <button class="btn-copy-line" onclick="copyLine('copy-cta-{{ o.id }}')">Copy</button>
                     </div>
-                    <button class="btn-copy-all-copy" onclick="copyAllCopy('{{ o.id }}')">📋 Copy All</button>
+                    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
+                      <button class="btn-copy-all-copy" onclick="copyAllCopy('{{ o.id }}')">📋 Copy All</button>
+                      <button class="btn-copy-all-copy btn-download-txt" onclick="downloadCopyAsTxt('{{ o.id }}')">⬇ Download .txt</button>
+                    </div>
                   </div>
                 </div>
 
