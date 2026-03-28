@@ -1158,40 +1158,133 @@ a:hover { text-decoration: underline; }
   gap: 0.5rem;
 }
 
-/* Offers admin tab */
-.offer-admin-url {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
-  color: var(--teal);
-  font-size: 0.82rem;
-}
+/* ── Offers admin tab ────────────────────────────────────── */
 
-.offer-admin-text {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text);
-  font-size: 0.82rem;
-  display: block;
-}
-
-.offer-month-filter {
+.offer-filters-bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
 }
-
-.offer-month-filter label {
+.offer-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.offer-filter-group label {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
 }
+.offer-count-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Admin offer card */
+.admin-offer-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+.admin-offer-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: #f9fafb;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.admin-offer-who {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.admin-offer-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.admin-offer-card-body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 0;
+}
+@media (max-width: 760px) {
+  .admin-offer-card-body { grid-template-columns: 1fr; }
+}
+
+/* Caption column */
+.admin-offer-caption-col {
+  padding: 1rem;
+  border-right: 1px solid var(--border);
+}
+.admin-offer-caption-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.btn-copy-caption {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-copy-caption:hover { opacity: .85; }
+.admin-offer-caption {
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+  line-height: 1.55;
+  padding-right: 4px;
+}
+
+/* Images column */
+.admin-offer-images-col {
+  padding: 1rem;
+}
+.admin-offer-images-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.admin-offer-img-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+.admin-offer-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: block;
+  transition: opacity .15s;
+}
+.admin-offer-img:hover { opacity: .85; }
 
 /* Image thumbnails in submitted offer cards */
 .offer-image-grid {

@@ -244,78 +244,86 @@
 
           {% if data.offers %}
 
-          <!-- Month filter -->
-          <div class="offer-month-filter">
-            <label>Filter by month:</label>
-            <select class="status-select" id="offer-month-filter" onchange="filterOffers()">
-              <option value="all">All months</option>
-              {% set seen = [] %}
-              {% for o in data.offers %}
-                {% set key = o.year ~ '-' ~ '%02d' % o.month %}
-                {% if key not in seen %}
-                  {% set _ = seen.append(key) %}
-                  <option value="{{ key }}">{{ month_names[o.month-1] }} {{ o.year }}</option>
-                {% endif %}
-              {% endfor %}
-            </select>
+          <!-- Filters -->
+          <div class="offer-filters-bar">
+            <div class="offer-filter-group">
+              <label>Month:</label>
+              <select class="status-select" id="offer-month-filter" onchange="filterOffers()">
+                <option value="all">All months</option>
+                {% set seen = [] %}
+                {% for o in data.offers %}
+                  {% set key = o.year ~ '-' ~ '%02d' % o.month %}
+                  {% if key not in seen %}
+                    {% set _ = seen.append(key) %}
+                    <option value="{{ key }}">{{ month_names[o.month-1] }} {{ o.year }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div class="offer-filter-group">
+              <label>Customer:</label>
+              <select class="status-select" id="offer-customer-filter" onchange="filterOffers()">
+                <option value="all">All customers</option>
+                {% set seen_c = [] %}
+                {% for o in data.offers %}
+                  {% if o.customer_id not in seen_c %}
+                    {% set _ = seen_c.append(o.customer_id) %}
+                    <option value="{{ o.customer_id }}">{{ o.customer_name }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <span id="offers-count" class="offer-count-label"></span>
           </div>
 
-          <div class="admin-table-wrap">
-            <table class="admin-table" id="offers-table">
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Plan</th>
-                  <th>Date</th>
-                  <th>Month</th>
-                  <th>Offer URL</th>
-                  <th>Caption</th>
-                  <th>Notes</th>
-                  <th>Image</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for o in data.offers %}
-                <tr id="offer-row-{{ o.id }}" data-month-key="{{ o.year }}-{{ '%02d' % o.month }}">
-                  <td><strong>{{ o.customer_name }}</strong></td>
-                  <td><span class="badge badge--plan badge--plan-{{ o.customer_plan or 'core' }}">{{ (o.customer_plan or 'core') | capitalize }}</span></td>
-                  <td style="white-space:nowrap;font-size:.82rem;">{{ o.submitted_at[:10] }}</td>
-                  <td style="white-space:nowrap;font-size:.82rem;">{{ month_names[o.month-1] }} {{ o.year }}</td>
-                  <td>
-                    <a href="{{ o.offer_url }}" target="_blank" rel="noopener"
-                       class="offer-admin-url" title="{{ o.offer_url }}">{{ o.offer_url }}</a>
-                  </td>
-                  <td>
-                    {% if o.caption %}
-                    <span class="offer-admin-text" title="{{ o.caption }}">{{ o.caption }}</span>
-                    {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
-                  </td>
-                  <td>
-                    {% if o.notes %}
-                    <span class="offer-admin-text" title="{{ o.notes }}">{{ o.notes }}</span>
-                    {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
-                  </td>
-                  <td>
-                    {% if o.image_urls %}
-                    <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                      {% for img in o.image_urls %}
-                      <a href="{{ img }}" target="_blank" rel="noopener">
-                        <img src="{{ img }}" style="width:40px;height:32px;object-fit:cover;border-radius:3px;border:1px solid var(--border);" alt="img" />
-                      </a>
-                      {% endfor %}
-                    </div>
-                    {% else %}<span style="color:#bbb;font-size:.82rem;">—</span>{% endif %}
-                  </td>
-                  <td class="actions-cell">
-                    <button class="btn btn-sm btn-danger"
-                            onclick="adminDeleteOffer('{{ o.id }}', '{{ o.customer_name }}')">Delete</button>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+          <!-- Offer cards -->
+          <div id="offers-cards">
+            {% for o in data.offers %}
+            <div class="admin-offer-card" id="offer-row-{{ o.id }}"
+                 data-month-key="{{ o.year }}-{{ '%02d' % o.month }}"
+                 data-customer-id="{{ o.customer_id }}">
+
+              <div class="admin-offer-card-header">
+                <div class="admin-offer-who">
+                  <strong>{{ o.customer_name }}</strong>
+                  <span class="badge badge--plan badge--plan-{{ o.customer_plan or 'core' }}">{{ (o.customer_plan or 'core') | capitalize }}</span>
+                  <span class="admin-offer-meta">{{ o.submitted_at[:10] }} &middot; {{ month_names[o.month-1] }} {{ o.year }}</span>
+                </div>
+                <div style="display:flex;gap:.5rem;align-items:center;">
+                  <a href="{{ o.offer_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost-dark">View Post ↗</a>
+                  <button class="btn btn-sm btn-danger" onclick="adminDeleteOffer('{{ o.id }}', '{{ o.customer_name }}')">Delete</button>
+                </div>
+              </div>
+
+              <div class="admin-offer-card-body">
+                <!-- Caption -->
+                <div class="admin-offer-caption-col">
+                  <div class="admin-offer-caption-label">
+                    Post Copy
+                    <button class="btn-copy-caption" onclick="copyCaption('caption-{{ o.id }}')" title="Copy to clipboard">Copy</button>
+                  </div>
+                  <div class="admin-offer-caption" id="caption-{{ o.id }}">{{ o.caption or '—' }}</div>
+                </div>
+
+                <!-- Images 3-col grid -->
+                {% if o.image_urls %}
+                <div class="admin-offer-images-col">
+                  <div class="admin-offer-images-label">Images ({{ o.image_urls | length }})</div>
+                  <div class="admin-offer-img-grid">
+                    {% for img in o.image_urls %}
+                    <a href="{{ img }}" target="_blank" rel="noopener" title="Image {{ loop.index }}">
+                      <img src="{{ img }}" class="admin-offer-img" alt="Image {{ loop.index }}" />
+                    </a>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+
+            </div>
+            {% endfor %}
           </div>
+          <p id="offers-empty-msg" style="display:none;color:var(--muted);font-size:.9rem;">No offers match the selected filters.</p>
 
           {% else %}
           <p style="color:var(--muted); font-size:.9rem;">No offers submitted yet.</p>
@@ -447,6 +455,15 @@
             </select>
             <button class="btn btn-sm btn-primary" onclick="assignDest()">Assign</button>
             <button class="btn btn-sm btn-ghost-dark" onclick="clearAllAssignments()">Clear all</button>
+          </div>
+        </div>
+
+        <!-- Supplier Reels -->
+        <div class="cust-detail-item cust-detail-item--full" id="cust-detail-offers-section" style="display:none;">
+          <span class="cust-detail-label">Supplier Reels this month</span>
+          <div id="cust-detail-offers-summary" style="margin-top:.4rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <span id="cust-detail-offers-count" style="font-size:.9rem;color:var(--muted);"></span>
+            <button class="btn btn-sm btn-ghost-dark" onclick="viewCustomerOffers()" id="cust-view-offers-btn">View submissions →</button>
           </div>
         </div>
 

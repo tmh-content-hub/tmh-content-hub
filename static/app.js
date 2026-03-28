@@ -118,6 +118,33 @@ function openCustomerDetail(custId) {
   document.getElementById("cust-detail-notes").value             = cust.notes || "";
   document.getElementById("cust-detail-plan").value              = cust.plan || "core";
   renderAssignedList(cust);
+
+  // Offers section — show for Pro/Managed only
+  const plan = cust.plan || "core";
+  const offersSection = document.getElementById("cust-detail-offers-section");
+  if (offersSection) {
+    if (plan === "pro" || plan === "managed") {
+      offersSection.style.display = "";
+      const limit = plan === "pro" ? 4 : 8;
+      // Count this month's offers for this customer
+      const now = new Date();
+      const thisMonth = now.getMonth() + 1;
+      const thisYear  = now.getFullYear();
+      const allCards  = document.querySelectorAll("#offers-cards .admin-offer-card");
+      let count = 0;
+      allCards.forEach(card => {
+        if (card.dataset.customerId === custId) {
+          const [cy, cm] = (card.dataset.monthKey || "").split("-").map(Number);
+          if (cy === thisYear && cm === thisMonth) count++;
+        }
+      });
+      document.getElementById("cust-detail-offers-count").textContent =
+        `${count} of ${limit} reels submitted this month`;
+    } else {
+      offersSection.style.display = "none";
+    }
+  }
+
   document.getElementById("customer-detail-modal").style.display = "flex";
 }
 
@@ -649,11 +676,46 @@ async function adminDeleteOffer(offerId, customerName) {
 }
 
 function filterOffers() {
-  const val   = document.getElementById("offer-month-filter").value;
-  const rows  = document.querySelectorAll("#offers-table tbody tr[data-month-key]");
-  rows.forEach(row => {
-    row.style.display = (val === "all" || row.dataset.monthKey === val) ? "" : "none";
+  const monthVal = document.getElementById("offer-month-filter")?.value || "all";
+  const custVal  = document.getElementById("offer-customer-filter")?.value || "all";
+  const cards    = document.querySelectorAll("#offers-cards .admin-offer-card");
+  let visible = 0;
+  cards.forEach(card => {
+    const monthMatch = monthVal === "all" || card.dataset.monthKey === monthVal;
+    const custMatch  = custVal  === "all" || card.dataset.customerId === custVal;
+    const show = monthMatch && custMatch;
+    card.style.display = show ? "" : "none";
+    if (show) visible++;
   });
+  const countEl = document.getElementById("offers-count");
+  if (countEl) countEl.textContent = visible === cards.length ? "" : `${visible} of ${cards.length} shown`;
+  const emptyMsg = document.getElementById("offers-empty-msg");
+  if (emptyMsg) emptyMsg.style.display = visible === 0 ? "" : "none";
+}
+
+function copyCaption(elemId) {
+  const el = document.getElementById(elemId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    showToast("Post copy copied to clipboard ✅");
+  }).catch(() => {
+    // Fallback for older browsers
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand("copy");
+    window.getSelection().removeAllRanges();
+    showToast("Post copy copied ✅");
+  });
+}
+
+function viewCustomerOffers() {
+  const custId = document.getElementById("cust-detail-id").value;
+  closeCustomerDetail();
+  switchTab("offers");
+  const custFilter = document.getElementById("offer-customer-filter");
+  if (custFilter) { custFilter.value = custId; filterOffers(); }
 }
 
 // ─── Sort destinations table by year then month ──────────
