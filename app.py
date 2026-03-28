@@ -709,6 +709,18 @@ def api_unassign_dest(cust_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/admin/api/customers/<cust_id>/clear-assignments", methods=["PUT"])
+@api_admin_required
+def api_clear_assignments(cust_id):
+    """Clear all assigned destinations for a customer in a single DB call."""
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE customers SET assigned_dest_ids='{}' WHERE id=%s", (cust_id,))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True, "assigned_dest_ids": []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ─────────────────────────────────────────────
 # Admin API — Destinations
 # ─────────────────────────────────────────────

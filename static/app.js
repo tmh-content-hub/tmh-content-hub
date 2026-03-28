@@ -189,16 +189,25 @@ async function clearAllAssignments() {
     showToast("No assignments to clear.", true); return;
   }
   showConfirm("Clear all assigned destinations for this customer? They will revert to the rolling window.", async () => {
-    for (const destId of [...(cust.assigned_dest_ids || [])]) {
-      await fetch(`/admin/api/customers/${custId}/unassign`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dest_id: destId })
+    try {
+      const res  = await fetch(`/admin/api/customers/${custId}/clear-assignments`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }
       });
+      let json;
+      try { json = await res.json(); } catch(_) { json = {}; }
+      if (res.status === 401) {
+        showToast("Session expired — please refresh the page and log in again.", true); return;
+      }
+      if (!json.success) {
+        showToast(json.error || "Failed to clear assignments.", true); return;
+      }
+      cust.assigned_dest_ids = [];
+      renderAssignedList(cust);
+      updateCustomerBadge(custId, []);
+      showToast("All assignments cleared — customer is back on rolling window.");
+    } catch(e) {
+      showToast("Network error — assignments not cleared.", true);
     }
-    cust.assigned_dest_ids = [];
-    renderAssignedList(cust);
-    updateCustomerBadge(custId, []);
-    showToast("All assignments cleared.");
   });
 }
 
