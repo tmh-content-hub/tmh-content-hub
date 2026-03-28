@@ -710,6 +710,54 @@ function copyCaption(elemId) {
   });
 }
 
+async function downloadOfferImages(offerId) {
+  const card = document.getElementById(`offer-row-${offerId}`);
+  if (!card) return;
+  const imgs = card.querySelectorAll('.admin-offer-img[data-url]');
+  if (!imgs.length) return;
+  const btn = card.querySelector('.btn-download-all');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Zipping…'; }
+  try {
+    const zip = new JSZip();
+    const fetches = Array.from(imgs).map(async (img, i) => {
+      const url  = img.dataset.url;
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const ext  = url.split('?')[0].split('.').pop() || 'jpg';
+      zip.file(`image-${i + 1}.${ext}`, blob);
+    });
+    await Promise.all(fetches);
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `offer-images-${offerId}.zip`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    showToast(`✅ ${imgs.length} images downloaded as ZIP`);
+  } catch(e) {
+    showToast('Download failed — try downloading images individually.', true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ Download Images'; }
+  }
+}
+
+async function downloadSingleImage(url, index) {
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const ext  = url.split('?')[0].split('.').pop() || 'jpg';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `image-${index}.${ext}`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch(e) {
+    window.open(url, '_blank'); // fallback — open in new tab
+  }
+}
+
 function viewCustomerOffers() {
   const custId = document.getElementById("cust-detail-id").value;
   closeCustomerDetail();

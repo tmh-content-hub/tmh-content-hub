@@ -289,8 +289,13 @@
                   <span class="badge badge--plan badge--plan-{{ o.customer_plan or 'core' }}">{{ (o.customer_plan or 'core') | capitalize }}</span>
                   <span class="admin-offer-meta">{{ o.submitted_at[:10] }} &middot; {{ month_names[o.month-1] }} {{ o.year }}</span>
                 </div>
-                <div style="display:flex;gap:.5rem;align-items:center;">
+                <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
                   <a href="{{ o.offer_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost-dark">View Post ↗</a>
+                  {% if o.image_urls %}
+                  <button class="btn btn-sm btn-ghost-dark btn-download-all"
+                          onclick="downloadOfferImages('{{ o.id }}')"
+                          data-offer-id="{{ o.id }}">⬇ Download Images</button>
+                  {% endif %}
                   <button class="btn btn-sm btn-danger" onclick="adminDeleteOffer('{{ o.id }}', '{{ o.customer_name }}')">Delete</button>
                 </div>
               </div>
@@ -309,11 +314,19 @@
                 {% if o.image_urls %}
                 <div class="admin-offer-images-col">
                   <div class="admin-offer-images-label">Images ({{ o.image_urls | length }})</div>
-                  <div class="admin-offer-img-grid">
+                  <div class="admin-offer-img-grid" id="img-grid-{{ o.id }}">
                     {% for img in o.image_urls %}
-                    <a href="{{ img }}" target="_blank" rel="noopener" title="Image {{ loop.index }}">
-                      <img src="{{ img }}" class="admin-offer-img" alt="Image {{ loop.index }}" />
-                    </a>
+                    <div class="admin-offer-img-wrap">
+                      <img src="{{ img }}" class="admin-offer-img" alt="Image {{ loop.index }}"
+                           data-url="{{ img }}" data-index="{{ loop.index }}" />
+                      <div class="admin-offer-img-overlay">
+                        <button class="btn-img-download"
+                                onclick="downloadSingleImage('{{ img }}', {{ loop.index }})"
+                                title="Download image {{ loop.index }}">⬇</button>
+                        <a href="{{ img }}" target="_blank" rel="noopener"
+                           class="btn-img-view" title="View full size">⤢</a>
+                      </div>
+                    </div>
                     {% endfor %}
                   </div>
                 </div>
@@ -510,5 +523,6 @@
     const TMH_MONTH_NAMES = {{ month_names | tojson }};
   </script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </body>
 </html>

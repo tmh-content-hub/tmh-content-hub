@@ -1275,16 +1275,48 @@ a:hover { text-decoration: underline; }
   grid-template-columns: repeat(3, 1fr);
   gap: 5px;
 }
+.admin-offer-img-wrap {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
 .admin-offer-img {
   width: 100%;
   aspect-ratio: 4/3;
   object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid var(--border);
   display: block;
-  transition: opacity .15s;
+  transition: opacity .2s;
 }
-.admin-offer-img:hover { opacity: .85; }
+.admin-offer-img-wrap:hover .admin-offer-img { opacity: .6; }
+.admin-offer-img-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity .2s;
+  background: rgba(0,0,0,.25);
+}
+.admin-offer-img-wrap:hover .admin-offer-img-overlay { opacity: 1; }
+.btn-img-download, .btn-img-view {
+  background: rgba(255,255,255,.92);
+  border: none;
+  border-radius: 5px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text);
+  transition: background .15s;
+}
+.btn-img-download:hover, .btn-img-view:hover { background: #fff; }
 
 /* Image thumbnails in submitted offer cards */
 .offer-image-grid {
