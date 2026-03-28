@@ -727,10 +727,15 @@ async function downloadOfferImages(offerId) {
       zip.file(`image-${i + 1}.${ext}`, blob);
     });
     await Promise.all(fetches);
-    const content = await zip.generateAsync({ type: 'blob' });
+    const content  = await zip.generateAsync({ type: 'blob' });
+    const nameEl   = card.querySelector('.admin-offer-who strong');
+    const metaEl   = card.querySelector('.admin-offer-meta');
+    const custName = nameEl ? nameEl.textContent.trim().replace(/\s+/g, '-').toLowerCase() : 'customer';
+    const month    = metaEl ? metaEl.textContent.split('·')[1]?.trim().replace(/\s+/g, '-') : '';
+    const filename = month ? `${custName}-${month}-images.zip` : `${custName}-images.zip`;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(content);
-    a.download = `offer-images-${offerId}.zip`;
+    a.download = filename;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
