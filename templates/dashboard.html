@@ -145,6 +145,7 @@
                   {% endif %}
                 </div>
 
+                {% if customer.plan in ['pro', 'managed'] %}
                 <div class="folder-card {% if not dest.files.reels %}folder-card--empty{% endif %}">
                   <div class="folder-card-icon">🎬</div>
                   <div class="folder-card-text">
@@ -157,6 +158,7 @@
                   <span class="folder-card-soon">Coming soon</span>
                   {% endif %}
                 </div>
+                {% endif %}
 
               </div><!-- /folder-grid -->
 
