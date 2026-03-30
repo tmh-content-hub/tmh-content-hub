@@ -280,11 +280,11 @@ def request_magic_link():
         conn = get_db()
         cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        # Ensure magic_tokens table exists
+        # Ensure magic_tokens table exists (customer_id is TEXT, not INTEGER)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS magic_tokens (
                 id SERIAL PRIMARY KEY,
-                customer_id INTEGER NOT NULL,
+                customer_id TEXT NOT NULL,
                 token TEXT UNIQUE NOT NULL,
                 expires_at TIMESTAMP NOT NULL,
                 used BOOLEAN DEFAULT FALSE,
@@ -1089,11 +1089,18 @@ def run_migrations():
             WHERE (reels IS NULL OR reels = '')
               AND video_reels IS NOT NULL
         """)
-        # Magic tokens table
+        # Magic tokens table — drop and recreate if customer_id is wrong type (INTEGER vs TEXT)
+        cur.execute("""
+            SELECT data_type FROM information_schema.columns
+            WHERE table_name='magic_tokens' AND column_name='customer_id'
+        """)
+        row = cur.fetchone()
+        if row and row[0] != 'text':
+            cur.execute("DROP TABLE magic_tokens")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS magic_tokens (
                 id SERIAL PRIMARY KEY,
-                customer_id INTEGER NOT NULL,
+                customer_id TEXT NOT NULL,
                 token TEXT UNIQUE NOT NULL,
                 expires_at TIMESTAMP NOT NULL,
                 used BOOLEAN DEFAULT FALSE,
