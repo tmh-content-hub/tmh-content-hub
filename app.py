@@ -1,10 +1,11 @@
 import os
 import json
 import hashlib
+import secrets
 import psycopg2
 import psycopg2.extras
 import urllib.request as urllib_req
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from flask import (
     Flask, render_template, request, redirect,
@@ -20,16 +21,16 @@ DATA_FILE = os.path.join(os.path.dirname(__file__), "data.json")
 MONTH_NAMES = ["January","February","March","April","May","June",
                "July","August","September","October","November","December"]
 
-FILE_FIELDS = ["blog_docx","social_posts","promo_assets","guide_pdf",
-               "images_folder","canva_guide","canva_carousel","canva_pinterest","video_reels"]
+FILE_FIELDS = ["social_media", "blog", "canva_guides", "reels"]
 
 OFFER_LIMITS = {"core": 0, "pro": 4, "managed": 8}
 
 SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 ALLOWED_IMAGE_TYPES  = {"image/jpeg","image/png"}
-HIGHLEVEL_WEBHOOK_URL = os.environ.get("HIGHLEVEL_WEBHOOK_URL", "")
-OPENAI_API_KEY        = os.environ.get("Render_Claude_Video_Reels", "")
+HIGHLEVEL_WEBHOOK_URL            = os.environ.get("HIGHLEVEL_WEBHOOK_URL", "")
+HIGHLEVEL_MAGIC_LINK_WEBHOOK_URL = os.environ.get("HIGHLEVEL_MAGIC_LINK_WEBHOOK_URL", "")
+OPENAI_API_KEY                   = os.environ.get("Render_Claude_Video_Reels", "")
 
 def upload_image(file_bytes, path, content_type):
     """Upload a file to Supabase Storage and return its public URL."""
@@ -238,14 +239,134 @@ def login():
                 return redirect(url_for("dashboard"))
             cur.close(); conn.close()
         except Exception as e:
-            return render_template("login.html", error=f"Database error: {e}")
+            return render_template("login.html", error=f"Database error: {e}", magic_msg=None, magic_error=False)
         error = "Invalid email or password. Please try again."
-    return render_template("login.html", error=error)
+    return render_template("login.html", error=error, magic_msg=None, magic_error=False)
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+# ─────────────────────────────────────────────
+# Magic link (passwordless login)
+# ─────────────────────────────────────────────
+
+def fire_magic_link_webhook(name, email, magic_link_url):
+    """POST magic link details to a dedicated HighLevel inbound webhook (silent fail)."""
+    if not HIGHLEVEL_MAGIC_LINK_WEBHOOK_URL:
+        return
+    try:
+        payload = json.dumps({
+            "event":      "magic_link",
+            "name":       name,
+            "email":      email,
+            "magic_link": magic_link_url,
+            "expires_in": "30 minutes",
+        }).encode("utf-8")
+        req = urllib_req.Request(HIGHLEVEL_MAGIC_LINK_WEBHOOK_URL, data=payload, method="POST")
+        req.add_header("Content-Type", "application/json")
+        urllib_req.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+@app.route("/request-magic-link", methods=["POST"])
+def request_magic_link():
+    email = request.form.get("email", "").strip().lower()
+    if not email:
+        return render_template("login.html", error=None,
+                               magic_msg="Please enter your email address.", magic_error=True)
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Ensure magic_tokens table exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS magic_tokens (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                used BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
+        cur.execute("SELECT id, name, email FROM customers WHERE LOWER(email)=%s", (email,))
+        customer = cur.fetchone()
+
+        if customer:
+            # Expire any existing unused tokens for this customer
+            cur.execute("""
+                UPDATE magic_tokens SET used=TRUE
+                WHERE customer_id=%s AND used=FALSE
+            """, (customer["id"],))
+
+            token      = secrets.token_urlsafe(32)
+            expires_at = datetime.utcnow() + timedelta(minutes=30)
+            cur.execute("""
+                INSERT INTO magic_tokens (customer_id, token, expires_at)
+                VALUES (%s, %s, %s)
+            """, (customer["id"], token, expires_at))
+            conn.commit()
+
+            magic_link_url = url_for("use_magic_link", token=token, _external=True)
+            fire_magic_link_webhook(customer["name"], customer["email"], magic_link_url)
+
+        cur.close(); conn.close()
+    except Exception as e:
+        return render_template("login.html", error=None,
+                               magic_msg=f"Something went wrong: {e}", magic_error=True)
+
+    # Always show the same success message (don't reveal if email exists)
+    return render_template("login.html", error=None,
+                           magic_msg="If that email is registered, a login link is on its way — check your inbox. It expires in 30 minutes.",
+                           magic_error=False)
+
+@app.route("/login/token/<token>")
+def use_magic_link(token):
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT mt.id AS token_id, mt.expires_at, mt.used,
+                   c.id AS customer_id, c.name, c.email
+            FROM magic_tokens mt
+            JOIN customers c ON c.id = mt.customer_id
+            WHERE mt.token = %s
+        """, (token,))
+        row = cur.fetchone()
+
+        if not row:
+            cur.close(); conn.close()
+            return render_template("login.html", error="This login link is invalid.",
+                                   magic_msg=None, magic_error=False)
+        if row["used"]:
+            cur.close(); conn.close()
+            return render_template("login.html", error="This login link has already been used.",
+                                   magic_msg=None, magic_error=False)
+        if datetime.utcnow() > row["expires_at"]:
+            cur.close(); conn.close()
+            return render_template("login.html",
+                                   error="This login link has expired. Request a new one below.",
+                                   magic_msg=None, magic_error=False)
+
+        # Mark token used and update last login
+        cur.execute("UPDATE magic_tokens SET used=TRUE WHERE id=%s", (row["token_id"],))
+        cur.execute("UPDATE customers SET last_login=%s WHERE id=%s",
+                    (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"), row["customer_id"]))
+        conn.commit()
+        cur.close(); conn.close()
+
+        session["user_id"]   = row["customer_id"]
+        session["user_name"] = row["name"]
+        session["role"]      = "customer"
+        session.permanent    = True
+        return redirect(url_for("dashboard"))
+
+    except Exception as e:
+        return render_template("login.html", error=f"Database error: {e}",
+                               magic_msg=None, magic_error=False)
 
 # ─────────────────────────────────────────────
 # Customer dashboard
@@ -821,9 +942,8 @@ def api_add_destination():
         cur.execute("""
             INSERT INTO destinations
                 (id,name,flag,month,year,status,
-                 blog_docx,social_posts,promo_assets,guide_pdf,
-                 images_folder,canva_guide,canva_carousel,canva_pinterest)
-            VALUES (%s,%s,%s,%s,%s,%s,'','','','','','','','')
+                 social_media,blog,canva_guides,reels)
+            VALUES (%s,%s,%s,%s,%s,%s,'','','','')
         """, (dest_id,name,flag,month,year,status))
         conn.commit(); cur.close(); conn.close()
         return jsonify({"success": True, "destination": {
@@ -851,14 +971,10 @@ def api_update_files(dest_id):
         conn = get_db(); cur = conn.cursor()
         cur.execute("""
             UPDATE destinations SET
-                blog_docx=%s, social_posts=%s, promo_assets=%s, guide_pdf=%s,
-                images_folder=%s, canva_guide=%s, canva_carousel=%s, canva_pinterest=%s,
-                video_reels=%s
+                social_media=%s, blog=%s, canva_guides=%s, reels=%s
             WHERE id=%s
-        """, (body.get("blog_docx",""), body.get("social_posts",""), body.get("promo_assets",""),
-              body.get("guide_pdf",""), body.get("images_folder",""), body.get("canva_guide",""),
-              body.get("canva_carousel",""), body.get("canva_pinterest",""),
-              body.get("video_reels",""), dest_id))
+        """, (body.get("social_media",""), body.get("blog",""),
+              body.get("canva_guides",""), body.get("reels",""), dest_id))
         conn.commit(); cur.close(); conn.close()
         return jsonify({"success": True})
     except Exception as e:
@@ -940,6 +1056,58 @@ def api_change_admin_password():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ─────────────────────────────────────────────
+# DB migrations — run at startup
+# ─────────────────────────────────────────────
+
+def run_migrations():
+    """Add new columns / tables to the DB if they don't already exist."""
+    try:
+        conn = get_db(); cur = conn.cursor()
+        # 4-folder link structure (replaces the old 9-field layout)
+        for col in ["social_media", "blog", "canva_guides", "reels"]:
+            cur.execute(f"ALTER TABLE destinations ADD COLUMN IF NOT EXISTS {col} TEXT DEFAULT ''")
+        # Migrate old data into new columns (only where new columns are empty)
+        cur.execute("""
+            UPDATE destinations SET social_media = COALESCE(NULLIF(social_posts,''), NULLIF(images_folder,''), '')
+            WHERE (social_media IS NULL OR social_media = '')
+              AND (social_posts IS NOT NULL OR images_folder IS NOT NULL)
+        """)
+        cur.execute("""
+            UPDATE destinations SET blog = COALESCE(NULLIF(blog_docx,''), NULLIF(promo_assets,''), '')
+            WHERE (blog IS NULL OR blog = '')
+              AND (blog_docx IS NOT NULL OR promo_assets IS NOT NULL)
+        """)
+        cur.execute("""
+            UPDATE destinations SET canva_guides = COALESCE(NULLIF(canva_guide,''), NULLIF(guide_pdf,''), NULLIF(canva_carousel,''), NULLIF(canva_pinterest,''), '')
+            WHERE (canva_guides IS NULL OR canva_guides = '')
+              AND (canva_guide IS NOT NULL OR guide_pdf IS NOT NULL OR canva_carousel IS NOT NULL)
+        """)
+        cur.execute("""
+            UPDATE destinations SET reels = COALESCE(NULLIF(video_reels,''), '')
+            WHERE (reels IS NULL OR reels = '')
+              AND video_reels IS NOT NULL
+        """)
+        # Magic tokens table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS magic_tokens (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                used BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        conn.commit(); cur.close(); conn.close()
+    except Exception:
+        pass  # Never block startup
+
+try:
+    run_migrations()
+except Exception:
+    pass
 
 # ─────────────────────────────────────────────
 # Run

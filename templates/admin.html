@@ -399,16 +399,28 @@
     <div class="modal-box modal-box--wide">
       <h3 class="modal-title" id="edit-links-title">Edit Links</h3>
       <input type="hidden" id="edit-links-dest-id" />
+      <p style="font-size:.82rem;color:#888;margin-bottom:1rem;">Paste the Google Drive folder URL for each section. Customers see one "Open Folder" button per section.</p>
       <div class="assign-links-grid">
-        <div class="form-group"><label>Blog DOCX URL</label><input type="url" id="el-blog_docx" placeholder="https://drive.google.com/..." /></div>
-        <div class="form-group"><label>Social Posts URL</label><input type="url" id="el-social_posts" placeholder="https://drive.google.com/..." /></div>
-        <div class="form-group"><label>Promo Assets URL</label><input type="url" id="el-promo_assets" placeholder="https://drive.google.com/..." /></div>
-        <div class="form-group"><label>Guide PDF URL</label><input type="url" id="el-guide_pdf" placeholder="https://drive.google.com/..." /></div>
-        <div class="form-group"><label>Images Folder URL</label><input type="url" id="el-images_folder" placeholder="https://drive.google.com/drive/folders/..." /></div>
-        <div class="form-group"><label>Canva — Destination Guide</label><input type="url" id="el-canva_guide" placeholder="https://www.canva.com/..." /></div>
-        <div class="form-group"><label>Canva — Instagram Carousel</label><input type="url" id="el-canva_carousel" placeholder="https://www.canva.com/..." /></div>
-        <div class="form-group"><label>Canva — Pinterest Pins</label><input type="url" id="el-canva_pinterest" placeholder="https://www.canva.com/..." /></div>
-        <div class="form-group"><label>Video Reels Folder</label><input type="url" id="el-video_reels" placeholder="https://drive.google.com/drive/folders/..." /></div>
+        <div class="form-group">
+          <label>📱 Social Media Folder</label>
+          <input type="url" id="el-social_media" placeholder="https://drive.google.com/drive/folders/..." />
+          <span style="font-size:.75rem;color:#aaa;">Captions document + social images</span>
+        </div>
+        <div class="form-group">
+          <label>📝 Blog Folder</label>
+          <input type="url" id="el-blog" placeholder="https://drive.google.com/drive/folders/..." />
+          <span style="font-size:.75rem;color:#aaa;">Blog DOCX + blog images</span>
+        </div>
+        <div class="form-group">
+          <label>🎨 Canva &amp; Guides Folder</label>
+          <input type="url" id="el-canva_guides" placeholder="https://drive.google.com/drive/folders/..." />
+          <span style="font-size:.75rem;color:#aaa;">Canva templates + destination guide PDF</span>
+        </div>
+        <div class="form-group">
+          <label>🎬 Reels Folder</label>
+          <input type="url" id="el-reels" placeholder="https://drive.google.com/drive/folders/..." />
+          <span style="font-size:.75rem;color:#aaa;">Video reel files</span>
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn btn-primary" onclick="saveEditLinks()">Save Links</button>

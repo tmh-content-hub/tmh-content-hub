@@ -29,6 +29,12 @@
       </div>
       {% endif %}
 
+      {% if magic_msg %}
+      <div class="alert {% if magic_error %}alert-error{% else %}alert-success{% endif %}">
+        {{ magic_msg }}
+      </div>
+      {% endif %}
+
       <form method="POST" action="{{ url_for('login') }}" class="login-form" novalidate>
         <div class="form-group">
           <label for="email">Email address</label>
@@ -54,6 +60,26 @@
         </div>
         <button type="submit" class="btn btn-primary btn-full">Sign in</button>
       </form>
+
+      <!-- Magic link -->
+      <div class="magic-link-divider">
+        <span>or</span>
+      </div>
+
+      <div class="magic-link-section">
+        <p class="magic-link-label">Forgot your password? Get a one-click login link sent to your inbox.</p>
+        <form method="POST" action="{{ url_for('request_magic_link') }}" class="magic-link-form" novalidate>
+          <input
+            type="email"
+            name="email"
+            placeholder="your@email.com"
+            autocomplete="email"
+            required
+            class="magic-link-input"
+          />
+          <button type="submit" class="btn btn-ghost-dark btn-magic">Send login link</button>
+        </form>
+      </div>
 
       <p class="login-help">
         Need help? <a href="mailto:info@thetravelmarketinghub.com">info@thetravelmarketinghub.com</a>
