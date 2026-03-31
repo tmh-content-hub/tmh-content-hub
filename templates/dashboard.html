@@ -160,6 +160,19 @@
                 </div>
                 {% endif %}
 
+                <div class="folder-card {% if not dest.files.promo_assets %}folder-card--empty{% endif %}">
+                  <div class="folder-card-icon">📣</div>
+                  <div class="folder-card-text">
+                    <span class="folder-card-title">Promo Assets</span>
+                    <span class="folder-card-sub">Emails &amp; social posts</span>
+                  </div>
+                  {% if dest.files.promo_assets %}
+                  <a href="{{ dest.files.promo_assets }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
+                  {% else %}
+                  <span class="folder-card-soon">Coming soon</span>
+                  {% endif %}
+                </div>
+
               </div><!-- /folder-grid -->
 
             </div><!-- /dest-card-body -->

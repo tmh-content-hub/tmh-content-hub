@@ -21,7 +21,7 @@ DATA_FILE = os.path.join(os.path.dirname(__file__), "data.json")
 MONTH_NAMES = ["January","February","March","April","May","June",
                "July","August","September","October","November","December"]
 
-FILE_FIELDS = ["social_media", "blog", "canva_guides", "reels"]
+FILE_FIELDS = ["social_media", "blog", "canva_guides", "reels", "promo_assets"]
 
 OFFER_LIMITS = {"core": 0, "pro": 4, "managed": 8}
 
@@ -971,10 +971,11 @@ def api_update_files(dest_id):
         conn = get_db(); cur = conn.cursor()
         cur.execute("""
             UPDATE destinations SET
-                social_media=%s, blog=%s, canva_guides=%s, reels=%s
+                social_media=%s, blog=%s, canva_guides=%s, reels=%s, promo_assets=%s
             WHERE id=%s
         """, (body.get("social_media",""), body.get("blog",""),
-              body.get("canva_guides",""), body.get("reels",""), dest_id))
+              body.get("canva_guides",""), body.get("reels",""),
+              body.get("promo_assets",""), dest_id))
         conn.commit(); cur.close(); conn.close()
         return jsonify({"success": True})
     except Exception as e:
@@ -1065,8 +1066,8 @@ def run_migrations():
     """Add new columns / tables to the DB if they don't already exist."""
     try:
         conn = get_db(); cur = conn.cursor()
-        # 4-folder link structure (replaces the old 9-field layout)
-        for col in ["social_media", "blog", "canva_guides", "reels"]:
+        # 5-folder link structure (replaces the old 9-field layout)
+        for col in ["social_media", "blog", "canva_guides", "reels", "promo_assets"]:
             cur.execute(f"ALTER TABLE destinations ADD COLUMN IF NOT EXISTS {col} TEXT DEFAULT ''")
         # Migrate old data into new columns (only where new columns are empty)
         cur.execute("""
