@@ -69,7 +69,7 @@
                 <span class="dest-flag">{{ dest.flag }}</span>
                 <div class="dest-card-titles">
                   <span class="dest-name">{{ dest.name }}</span>
-                  <span class="dest-subtitle">{{ dest.month_name }} {{ dest.year }} · Publishing around the 20th of the preceding month</span>
+                  <span class="dest-subtitle">{{ dest.month_name }} {{ dest.year }} · Ready around 20th {{ month_names[dest.month - 2] if dest.month > 1 else 'December' }}</span>
                 </div>
               </div>
               <div class="dest-card-header-right">

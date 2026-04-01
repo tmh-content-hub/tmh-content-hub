@@ -438,6 +438,7 @@ def dashboard():
             total_posts=len(ready) * 16,
             total_blogs=len(ready),
             is_assigned=is_assigned,
+            month_names=MONTH_NAMES,
         )
     except Exception as e:
         return f"<h2>Dashboard error</h2><pre>{e}</pre>", 500
