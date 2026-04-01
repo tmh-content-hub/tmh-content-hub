@@ -182,6 +182,22 @@
         {% endfor %}
       </div><!-- /destinations-list -->
 
+      {% if customer.plan in ['pro', 'managed'] and customer.supplier_reels_url %}
+      <!-- ── Supplier Reels ─────────────────────────────────── -->
+      <div class="supplier-reels-section">
+        <h2 class="section-heading">Your Supplier Reels</h2>
+        <p class="section-hint">Your bespoke monthly reels, created from your submitted offers and ready to post.</p>
+        <a href="{{ customer.supplier_reels_url }}" target="_blank" rel="noopener" class="supplier-reels-card">
+          <span class="supplier-reels-icon">🎬</span>
+          <div class="supplier-reels-text">
+            <span class="supplier-reels-title">Open Your Reels Folder</span>
+            <span class="supplier-reels-sub">Your private Google Drive folder — view and download your reels</span>
+          </div>
+          <span class="supplier-reels-arrow">Open →</span>
+        </a>
+      </div>
+      {% endif %}
+
       <!-- ── Change password ───────────────────────────────── -->
       <div class="change-pw-section">
         <h3 class="change-pw-title">Change Your Password</h3>

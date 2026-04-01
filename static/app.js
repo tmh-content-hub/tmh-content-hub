@@ -119,8 +119,18 @@ function openCustomerDetail(custId) {
   document.getElementById("cust-detail-plan").value              = cust.plan || "core";
   renderAssignedList(cust);
 
-  // Offers section — show for Pro/Managed only
+  // Pro/Managed-only sections
   const plan = cust.plan || "core";
+  const isPro = plan === "pro" || plan === "managed";
+
+  // Supplier reels folder
+  const reelsFolderSection = document.getElementById("cust-detail-reels-folder-section");
+  const reelsUrlInput = document.getElementById("cust-detail-supplier-reels-url");
+  if (reelsFolderSection) {
+    reelsFolderSection.style.display = isPro ? "" : "none";
+    if (reelsUrlInput) reelsUrlInput.value = cust.supplier_reels_url || "";
+  }
+
   const offersSection = document.getElementById("cust-detail-offers-section");
   if (offersSection) {
     if (plan === "pro" || plan === "managed") {
@@ -249,11 +259,13 @@ function updateCustomerBadge(custId, ids) {
 }
 
 async function saveCustomerDetail() {
-  const custId = document.getElementById("cust-detail-id").value;
-  const notes  = document.getElementById("cust-detail-notes").value;
-  const plan   = document.getElementById("cust-detail-plan").value;
+  const custId           = document.getElementById("cust-detail-id").value;
+  const notes            = document.getElementById("cust-detail-notes").value;
+  const plan             = document.getElementById("cust-detail-plan").value;
+  const supplierReelsUrl = (document.getElementById("cust-detail-supplier-reels-url")?.value || "").trim();
+  const isPro = plan === "pro" || plan === "managed";
   try {
-    const [notesRes, planRes] = await Promise.all([
+    const fetches = [
       fetch(`/admin/api/customers/${custId}/notes`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes })
@@ -262,15 +274,23 @@ async function saveCustomerDetail() {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan })
       })
-    ]);
-    const [nj, pj] = await Promise.all([notesRes.json(), planRes.json()]);
-    if (nj.success && pj.success) {
+    ];
+    if (isPro) {
+      fetches.push(fetch(`/admin/api/customers/${custId}/supplier-reels`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supplier_reels_url: supplierReelsUrl })
+      }));
+    }
+    const responses = await Promise.all(fetches);
+    const jsons     = await Promise.all(responses.map(r => r.json()));
+    const failed    = jsons.find(j => !j.success);
+    if (!failed) {
       const cust = TMH_DATA.customers.find(c => c.id === custId);
-      if (cust) { cust.notes = notes; cust.plan = plan; }
+      if (cust) { cust.notes = notes; cust.plan = plan; if (isPro) cust.supplier_reels_url = supplierReelsUrl; }
       updatePlanBadge(custId, plan);
       closeCustomerDetail();
       showToast("Customer details saved.");
-    } else { showToast((nj.error || pj.error) || "Failed.", true); }
+    } else { showToast(failed.error || "Failed.", true); }
   } catch(e) { showToast("Network error.", true); }
 }
 

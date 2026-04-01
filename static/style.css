@@ -1014,6 +1014,36 @@ a:hover { text-decoration: underline; }
 /* Section hint */
 .section-hint { font-size: 0.85rem; color: var(--muted); margin-top: -0.5rem; margin-bottom: 1.25rem; }
 
+/* Supplier Reels section on dashboard */
+.supplier-reels-section { margin-top: 2.5rem; }
+.supplier-reels-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s, box-shadow .15s;
+  max-width: 600px;
+}
+.supplier-reels-card:hover { border-color: var(--orange); box-shadow: 0 2px 8px rgba(247,151,75,.12); }
+.supplier-reels-icon { font-size: 1.6rem; flex-shrink: 0; }
+.supplier-reels-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.supplier-reels-title { font-weight: 700; font-size: .9rem; color: var(--dark); }
+.supplier-reels-sub { font-size: .75rem; color: var(--muted); margin-top: .1rem; }
+.supplier-reels-arrow {
+  flex-shrink: 0;
+  background: var(--orange);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 700;
+  padding: .4rem .85rem;
+  border-radius: 7px;
+}
+
 /* Change password section on dashboard */
 .change-pw-section {
   margin-top: 2.5rem;

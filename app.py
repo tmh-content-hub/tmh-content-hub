@@ -859,6 +859,19 @@ def api_update_plan(cust_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/admin/api/customers/<cust_id>/supplier-reels", methods=["PUT"])
+@api_admin_required
+def api_update_supplier_reels(cust_id):
+    body = request.get_json(force=True, silent=True)
+    url  = body.get("supplier_reels_url", "").strip()
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE customers SET supplier_reels_url=%s WHERE id=%s", (url, cust_id))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/admin/api/customers/<cust_id>/assign", methods=["PUT"])
 @api_admin_required
 def api_assign_dest(cust_id):
@@ -1090,6 +1103,8 @@ def run_migrations():
             WHERE (reels IS NULL OR reels = '')
               AND video_reels IS NOT NULL
         """)
+        # Supplier reels folder URL per customer
+        cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS supplier_reels_url TEXT DEFAULT ''")
         # Magic tokens table — drop and recreate if customer_id is wrong type (INTEGER vs TEXT)
         cur.execute("""
             SELECT data_type FROM information_schema.columns
