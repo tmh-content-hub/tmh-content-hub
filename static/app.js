@@ -265,25 +265,23 @@ async function saveCustomerDetail() {
   const supplierReelsUrl = (document.getElementById("cust-detail-supplier-reels-url")?.value || "").trim();
   const isPro = plan === "pro" || plan === "managed";
   try {
+    const adminFetch = (url, body) => {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 15000);
+      return fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body), signal: ctrl.signal });
+    };
     const fetches = [
-      fetch(`/admin/api/customers/${custId}/notes`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes })
-      }),
-      fetch(`/admin/api/customers/${custId}/plan`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan })
-      })
+      adminFetch(`/admin/api/customers/${custId}/notes`, { notes }),
+      adminFetch(`/admin/api/customers/${custId}/plan`, { plan })
     ];
     if (isPro) {
-      fetches.push(fetch(`/admin/api/customers/${custId}/supplier-reels`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ supplier_reels_url: supplierReelsUrl })
-      }));
+      fetches.push(adminFetch(`/admin/api/customers/${custId}/supplier-reels`, { supplier_reels_url: supplierReelsUrl }));
     }
     const responses = await Promise.all(fetches);
-    const jsons     = await Promise.all(responses.map(r => r.json()));
-    const failed    = jsons.find(j => !j.success);
+    if (responses.some(r => r.status === 401)) { window.location.href = "/admin/login?reason=expired"; return; }
+    const jsons  = await Promise.all(responses.map(r => r.json()));
+    const failed = jsons.find(j => !j.success);
     if (!failed) {
       const cust = TMH_DATA.customers.find(c => c.id === custId);
       if (cust) { cust.notes = notes; cust.plan = plan; if (isPro) cust.supplier_reels_url = supplierReelsUrl; }
@@ -291,7 +289,10 @@ async function saveCustomerDetail() {
       closeCustomerDetail();
       showToast("Customer details saved.");
     } else { showToast(failed.error || "Failed.", true); }
-  } catch(e) { showToast("Network error.", true); }
+  } catch(e) {
+    if (e.name === "AbortError") { showToast("Save timed out — please refresh and try again.", true); }
+    else { showToast("Network error.", true); }
+  }
 }
 
 function updatePlanBadge(custId, plan) {
@@ -615,14 +616,17 @@ async function saveEditLinks() {
   if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
 
   try {
-    const res  = await fetch(`/admin/api/destinations/${destId}/files`, {
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(`/admin/api/destinations/${destId}/files`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body), signal: controller.signal
     });
+    clearTimeout(timeout);
     let json;
     try { json = await res.json(); } catch(_) { json = {}; }
     if (res.status === 401) {
-      showToast("Session expired — please refresh the page and log in again.", true);
+      window.location.href = "/admin/login?reason=expired";
     } else if (json.success) {
       const dest = TMH_DATA.all_destinations.find(d => d.id === destId);
       if (dest) Object.assign(dest.files, body);
@@ -632,7 +636,11 @@ async function saveEditLinks() {
       showToast(json.error || "Save failed — please try again.", true);
     }
   } catch(e) {
-    showToast("Network error — please check your connection and try again.", true);
+    if (e.name === "AbortError") {
+      showToast("Save timed out — the server took too long. Please refresh and try again.", true);
+    } else {
+      showToast("Network error — please check your connection and try again.", true);
+    }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "Save Links"; }
   }
