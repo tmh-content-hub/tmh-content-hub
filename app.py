@@ -1103,8 +1103,6 @@ def run_migrations():
             WHERE (reels IS NULL OR reels = '')
               AND video_reels IS NOT NULL
         """)
-        # Supplier reels folder URL per customer
-        cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS supplier_reels_url TEXT DEFAULT ''")
         # Magic tokens table — drop and recreate if customer_id is wrong type (INTEGER vs TEXT)
         cur.execute("""
             SELECT data_type FROM information_schema.columns
@@ -1129,6 +1127,21 @@ def run_migrations():
 
 try:
     run_migrations()
+except Exception:
+    pass
+
+# Run independently so a failure in run_migrations() can't block these
+def run_migrations_extra():
+    """Independent migrations that must not be blocked by run_migrations failures."""
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS supplier_reels_url TEXT DEFAULT ''")
+        conn.commit(); cur.close(); conn.close()
+    except Exception:
+        pass
+
+try:
+    run_migrations_extra()
 except Exception:
     pass
 
