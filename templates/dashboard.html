@@ -89,7 +89,7 @@
                 <span class="dest-flag">{{ dest.flag }}</span>
                 <div class="dest-card-titles">
                   <span class="dest-name">{{ dest.name }}</span>
-                  <span class="dest-subtitle">{{ dest.month_name }} {{ dest.year }} · 16 posts · Blog · Promo assets · Canva templates</span>
+                  <span class="dest-subtitle">{{ dest.month_name }} {{ dest.year }} · 16 posts · Blog · Emails & social copy · Design templates</span>
                 </div>
               </div>
               <div class="dest-card-header-right">
@@ -123,7 +123,7 @@
                   <div class="folder-card-icon">📝</div>
                   <div class="folder-card-text">
                     <span class="folder-card-title">Blog</span>
-                    <span class="folder-card-sub">Post &amp; images</span>
+                    <span class="folder-card-sub">Blog post &amp; images</span>
                   </div>
                   {% if dest.files.blog %}
                   <a href="{{ dest.files.blog }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
@@ -135,8 +135,8 @@
                 <div class="folder-card {% if not dest.files.canva_guides %}folder-card--empty{% endif %}">
                   <div class="folder-card-icon">🎨</div>
                   <div class="folder-card-text">
-                    <span class="folder-card-title">Canva &amp; Guides</span>
-                    <span class="folder-card-sub">Templates &amp; guide PDF</span>
+                    <span class="folder-card-title">Design Templates &amp; Guides</span>
+                    <span class="folder-card-sub">Canva templates &amp; guide PDF</span>
                   </div>
                   {% if dest.files.canva_guides %}
                   <a href="{{ dest.files.canva_guides }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
@@ -163,8 +163,8 @@
                 <div class="folder-card {% if not dest.files.promo_assets %}folder-card--empty{% endif %}">
                   <div class="folder-card-icon">📣</div>
                   <div class="folder-card-text">
-                    <span class="folder-card-title">Promo Assets</span>
-                    <span class="folder-card-sub">Emails &amp; social posts</span>
+                    <span class="folder-card-title">Email &amp; Social Copy</span>
+                    <span class="folder-card-sub">Ready-to-send emails &amp; social posts</span>
                   </div>
                   {% if dest.files.promo_assets %}
                   <a href="{{ dest.files.promo_assets }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
@@ -186,7 +186,7 @@
       <!-- ── Supplier Reels ─────────────────────────────────── -->
       <div class="supplier-reels-section">
         <h2 class="section-heading">Your Supplier Reels</h2>
-        <p class="section-hint">Your bespoke monthly reels, created from your submitted offers and ready to post.</p>
+        <p class="section-hint">Your custom monthly reels, built from your supplier promotions and ready to post.</p>
         <a href="{{ customer.supplier_reels_url }}" target="_blank" rel="noopener" class="supplier-reels-card">
           <span class="supplier-reels-icon">🎬</span>
           <div class="supplier-reels-text">
