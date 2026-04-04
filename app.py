@@ -430,6 +430,10 @@ def dashboard():
                 visible.append(d)
             is_assigned = False
 
+        cur.execute("SELECT value FROM admin_settings WHERE key='engagement_folder_url'")
+        row = cur.fetchone()
+        engagement_folder_url = row["value"] if row else ""
+
         cur.close(); conn.close()
         ready = [d for d in visible if d["status"] == "ready"]
         return render_template("dashboard.html",
@@ -439,6 +443,7 @@ def dashboard():
             total_blogs=len(ready),
             is_assigned=is_assigned,
             month_names=MONTH_NAMES,
+            engagement_folder_url=engagement_folder_url,
         )
     except Exception as e:
         return f"<h2>Dashboard error</h2><pre>{e}</pre>", 500
@@ -745,6 +750,11 @@ def admin_panel():
             ORDER BY o.year DESC, o.month DESC, o.submitted_at DESC
         """)
         all_offers = [dict(r) for r in cur.fetchall()]
+
+        cur.execute("SELECT value FROM admin_settings WHERE key='engagement_folder_url'")
+        row = cur.fetchone()
+        engagement_folder_url = row["value"] if row else ""
+
         cur.close(); conn.close()
 
         active_dests   = [d for d in all_dests if d['status'] != 'archived']
@@ -767,6 +777,7 @@ def admin_panel():
                 "current": (cur_m,  cur_y),
                 "next":    (next_m, next_y),
             },
+            engagement_folder_url=engagement_folder_url,
         )
     except Exception as e:
         return f"<h2>Admin error</h2><pre>{e}</pre>", 500
@@ -985,10 +996,10 @@ def api_update_files(dest_id):
         conn = get_db(); cur = conn.cursor()
         cur.execute("""
             UPDATE destinations SET
-                social_media=%s, blog=%s, canva_guides=%s, reels=%s, promo_assets=%s
+                social_media=%s, blog=%s, canva_guides=%s, promo_assets=%s
             WHERE id=%s
         """, (body.get("social_media",""), body.get("blog",""),
-              body.get("canva_guides",""), body.get("reels",""),
+              body.get("canva_guides",""),
               body.get("promo_assets",""), dest_id))
         conn.commit(); cur.close(); conn.close()
         return jsonify({"success": True})
@@ -1072,6 +1083,22 @@ def api_change_admin_password():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/admin/api/settings/engagement-folder", methods=["PUT"])
+@api_admin_required
+def api_update_engagement_folder():
+    body = request.get_json(force=True, silent=True)
+    url  = body.get("url", "").strip()
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO admin_settings (key, value) VALUES ('engagement_folder_url', %s)
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+        """, (url,))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ─────────────────────────────────────────────
 # DB migrations — run at startup
 # ─────────────────────────────────────────────
@@ -1137,6 +1164,22 @@ def run_migrations_extra():
     try:
         conn = get_db(); cur = conn.cursor()
         cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS supplier_reels_url TEXT DEFAULT ''")
+        # Ensure admin_settings has a unique constraint on key so ON CONFLICT works
+        cur.execute("""
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'admin_settings_key_unique'
+                ) THEN
+                    ALTER TABLE admin_settings ADD CONSTRAINT admin_settings_key_unique UNIQUE (key);
+                END IF;
+            END $$;
+        """)
+        # Seed engagement_folder_url row if it doesn't exist
+        cur.execute("""
+            INSERT INTO admin_settings (key, value) VALUES ('engagement_folder_url', '')
+            ON CONFLICT (key) DO NOTHING
+        """)
         conn.commit(); cur.close(); conn.close()
     except Exception:
         pass

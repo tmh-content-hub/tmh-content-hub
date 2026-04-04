@@ -369,6 +369,22 @@
 
       <!-- ══ TAB 4: Settings ══ -->
       <div id="panel-settings" class="tab-panel">
+
+        <div class="panel-section">
+          <h2 class="panel-title">Engagement Content Folder</h2>
+          <p style="font-size:.87rem;color:#666;margin-bottom:1rem;">This single Google Drive folder is shown to all customers (all plans) as their Engagement Content source.</p>
+          <div class="admin-form">
+            <div class="form-group" style="max-width:600px;">
+              <label>📸 Engagement Images Folder URL</label>
+              <input type="url" id="engagement-folder-url"
+                     value="{{ engagement_folder_url or '' }}"
+                     placeholder="https://drive.google.com/drive/folders/..." />
+              <span style="font-size:.75rem;color:#aaa;">Ready-to-post engagement graphics for social media</span>
+            </div>
+            <button class="btn btn-primary" onclick="saveEngagementFolderUrl()">Save URL</button>
+          </div>
+        </div>
+
         <div class="panel-section">
           <h2 class="panel-title">Change Admin Password</h2>
           <form class="admin-form" onsubmit="changeAdminPassword(event)">
@@ -415,11 +431,6 @@
           <label>🎨 Canva &amp; Guides Folder</label>
           <input type="url" id="el-canva_guides" placeholder="https://drive.google.com/drive/folders/..." />
           <span style="font-size:.75rem;color:#aaa;">Canva templates + destination guide PDF</span>
-        </div>
-        <div class="form-group">
-          <label>🎬 Reels Folder</label>
-          <input type="url" id="el-reels" placeholder="https://drive.google.com/drive/folders/..." />
-          <span style="font-size:.75rem;color:#aaa;">Video reel files</span>
         </div>
         <div class="form-group">
           <label>📣 Promo Assets</label>

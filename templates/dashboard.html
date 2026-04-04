@@ -146,14 +146,14 @@
                 </div>
 
                 {% if customer.plan in ['pro', 'managed'] %}
-                <div class="folder-card {% if not dest.files.reels %}folder-card--empty{% endif %}">
+                <div class="folder-card {% if not customer.supplier_reels_url %}folder-card--empty{% endif %}">
                   <div class="folder-card-icon">🎬</div>
                   <div class="folder-card-text">
-                    <span class="folder-card-title">Reels</span>
-                    <span class="folder-card-sub">Video files</span>
+                    <span class="folder-card-title">Your Reels Folder</span>
+                    <span class="folder-card-sub">Destination reel and supplier video content</span>
                   </div>
-                  {% if dest.files.reels %}
-                  <a href="{{ dest.files.reels }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
+                  {% if customer.supplier_reels_url %}
+                  <a href="{{ customer.supplier_reels_url }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
                   {% else %}
                   <span class="folder-card-soon">Coming soon</span>
                   {% endif %}
@@ -182,21 +182,23 @@
         {% endfor %}
       </div><!-- /destinations-list -->
 
-      {% if customer.plan in ['pro', 'managed'] and customer.supplier_reels_url %}
-      <!-- ── Supplier Reels ─────────────────────────────────── -->
-      <div class="supplier-reels-section">
-        <h2 class="section-heading">Your Supplier Reels</h2>
-        <p class="section-hint">Your custom monthly reels, built from your supplier promotions and ready to post.</p>
-        <a href="{{ customer.supplier_reels_url }}" target="_blank" rel="noopener" class="supplier-reels-card">
-          <span class="supplier-reels-icon">🎬</span>
-          <div class="supplier-reels-text">
-            <span class="supplier-reels-title">Open Your Reels Folder</span>
-            <span class="supplier-reels-sub">Your private Google Drive folder — view and download your reels</span>
+      <!-- ── Engagement Content ────────────────────────────── -->
+      <h2 class="section-heading" style="margin-top:2.5rem;">Engagement Content</h2>
+      <p class="section-hint">Ready-made content to keep your audience engaged between destination posts.</p>
+      <div class="folder-grid" style="margin-bottom:2rem;">
+        <div class="folder-card {% if not engagement_folder_url %}folder-card--empty{% endif %}">
+          <div class="folder-card-icon">📸</div>
+          <div class="folder-card-text">
+            <span class="folder-card-title">Engagement Images</span>
+            <span class="folder-card-sub">Ready-to-post engagement graphics for social media</span>
           </div>
-          <span class="supplier-reels-arrow">Open →</span>
-        </a>
+          {% if engagement_folder_url %}
+          <a href="{{ engagement_folder_url }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
+          {% else %}
+          <span class="folder-card-soon">Coming soon</span>
+          {% endif %}
+        </div>
       </div>
-      {% endif %}
 
       <!-- ── Change password ───────────────────────────────── -->
       <div class="change-pw-section">

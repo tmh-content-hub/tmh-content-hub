@@ -590,7 +590,7 @@ function openEditLinks(destId) {
   document.getElementById("edit-links-title").textContent =
     `Edit Links — ${TMH_MONTH_NAMES[dest.month-1]} ${dest.year}: ${dest.name}`;
 
-  const fields = ["social_media", "blog", "canva_guides", "reels", "promo_assets"];
+  const fields = ["social_media", "blog", "canva_guides", "promo_assets"];
   fields.forEach(f => {
     const el = document.getElementById(`el-${f}`);
     if (el) el.value = dest.files?.[f] || "";
@@ -605,7 +605,7 @@ function closeEditLinks() {
 
 async function saveEditLinks() {
   const destId = document.getElementById("edit-links-dest-id").value;
-  const fields = ["social_media", "blog", "canva_guides", "reels", "promo_assets"];
+  const fields = ["social_media", "blog", "canva_guides", "promo_assets"];
   const body = {};
   fields.forEach(f => {
     const el = document.getElementById(`el-${f}`);
@@ -669,6 +669,22 @@ async function changeAdminPassword(e) {
       document.getElementById("admin-pw-new").value = "";
       document.getElementById("admin-pw-confirm").value = "";
     } else { showToast(json.error || "Failed.", true); }
+  } catch(e) { showToast("Network error.", true); }
+}
+
+// ─── Admin: save engagement folder URL ───────────────────
+
+async function saveEngagementFolderUrl() {
+  const url = (document.getElementById("engagement-folder-url")?.value || "").trim();
+  try {
+    const res  = await fetch("/admin/api/settings/engagement-folder", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+    if (res.status === 401) { window.location.href = "/admin/login?reason=expired"; return; }
+    const json = await res.json();
+    if (json.success) { showToast("✅ Engagement folder URL saved."); }
+    else { showToast(json.error || "Failed.", true); }
   } catch(e) { showToast("Network error.", true); }
 }
 
