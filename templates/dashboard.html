@@ -185,18 +185,24 @@
       <!-- ── Engagement Content ────────────────────────────── -->
       <h2 class="section-heading" style="margin-top:2.5rem;">Engagement Content</h2>
       <p class="section-hint">Ready-made content to keep your audience engaged between destination posts.</p>
-      <div class="folder-grid" style="grid-template-columns:1fr;margin-bottom:2rem;">
-        <div class="folder-card {% if not engagement_folder_url %}folder-card--empty{% endif %}">
-          <div class="folder-card-icon">📸</div>
-          <div class="folder-card-text">
-            <span class="folder-card-title">Engagement Images</span>
-            <span class="folder-card-sub">Ready-to-post engagement graphics for social media</span>
+      <div class="destinations-list" style="margin-bottom:2rem;">
+        <div class="dest-card {% if not engagement_folder_url %}dest-card--coming-soon{% endif %}">
+          <div class="dest-card-header dest-card-header--static">
+            <div class="dest-card-header-left">
+              <span class="dest-flag">📸</span>
+              <div class="dest-card-titles">
+                <span class="dest-name">Engagement Images</span>
+                <span class="dest-subtitle">Ready-to-post engagement graphics for social media</span>
+              </div>
+            </div>
+            <div class="dest-card-header-right">
+              {% if engagement_folder_url %}
+              <a href="{{ engagement_folder_url }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
+              {% else %}
+              <span class="badge badge--soon">Coming Soon</span>
+              {% endif %}
+            </div>
           </div>
-          {% if engagement_folder_url %}
-          <a href="{{ engagement_folder_url }}" target="_blank" rel="noopener" class="folder-card-btn">Open →</a>
-          {% else %}
-          <span class="folder-card-soon">Coming soon</span>
-          {% endif %}
         </div>
       </div>
 
