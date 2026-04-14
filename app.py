@@ -803,14 +803,116 @@ Original post:
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/admin/api/offers/<offer_id>/slots", methods=["PUT"])
+@app.route("/admin/api/offers/<offer_id>/auto-assign-slots", methods=["POST"])
 @api_admin_required
-def api_save_offer_slots(offer_id):
-    """Save slot assignments and style choice for an offer."""
-    body             = request.get_json(force=True, silent=True) or {}
-    slot_assignments = body.get("slot_assignments", {})
-    assigned_style   = int(body.get("assigned_style", 0))
+def api_auto_assign_slots(offer_id):
+    """Use GPT-4o vision to classify the offer's images and assign them to Freepik slots."""
+    if not OPENAI_API_KEY:
+        return jsonify({"error": "OpenAI API key (Render_Claude_Video_Reels) not set."}), 500
+    body           = request.get_json(force=True, silent=True) or {}
+    assigned_style = int(body.get("assigned_style", 0))
+    if assigned_style not in STYLE_SEQUENCES:
+        return jsonify({"error": "Pick a style (1–4) before auto-assigning."}), 400
     try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT image_urls FROM supplier_offers WHERE id=%s", (offer_id,))
+        offer = cur.fetchone()
+        cur.close(); conn.close()
+        if not offer:
+            return jsonify({"error": "Offer not found."}), 404
+        image_urls = list(offer["image_urls"] or [])
+        if not image_urls:
+            return jsonify({"error": "No images found on this offer."}), 400
+
+        # Build vision message — text prompt + one image block per image
+        n = len(image_urls)
+        image_blocks = [{"type": "text", "text": f"""You are classifying {n} travel images for a video reel slot assignment.
+
+Look at each numbered image carefully and classify it into EXACTLY ONE of these slot types:
+
+- Aerial: aerial/drone shot, overhead view — resort, bay, city, or pool from above
+- LateralFly: wide outdoor scene — pool area, beach, garden, rice fields, open landscape
+- CraneUp_Reveal: building exterior, temple ruins, landmark, tall structure, facade, archway
+- LateralInterior: grand interior — hotel lobby, restaurant, bar, spa, large indoor hall
+- DollyOut: bedroom, hotel suite, villa interior, bathroom
+- LockedZoom: the single most dramatic image with strongest focal point — something a camera can push into (a lone figure in a doorway, a mountain peak, a dramatic archway, a standout hero image)
+
+Return ONLY valid JSON — no markdown, no explanation — in exactly this format:
+{{
+  "classifications": [
+    {{"image": 1, "slot": "SlotName", "description": "4–6 word description"}},
+    {{"image": 2, "slot": "SlotName", "description": "4–6 word description"}}
+  ]
+}}
+
+Rules:
+- Each slot type should appear at most once. If two images could fit the same slot, pick the best match and assign the other to the next closest slot type.
+- Every image must be classified — if there are more images than slot types, assign the extras to the slot type they fit best (duplicate slot names are allowed only as a last resort).
+- Use only the exact slot names listed above (case-sensitive).
+- Keep descriptions to 4–6 words max."""}]
+
+        for i, url in enumerate(image_urls):
+            image_blocks.append({
+                "type": "image_url",
+                "image_url": {"url": url, "detail": "low"}
+            })
+
+        payload = json.dumps({
+            "model":       "gpt-4o",
+            "messages":    [{"role": "user", "content": image_blocks}],
+            "temperature": 0.2,
+            "max_tokens":  500,
+        }).encode("utf-8")
+
+        req = urllib_req.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=payload, method="POST"
+        )
+        req.add_header("Authorization", f"Bearer {OPENAI_API_KEY}")
+        req.add_header("Content-Type", "application/json")
+
+        with urllib_req.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+
+        raw = result["choices"][0]["message"]["content"].strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        classifications = json.loads(raw)["classifications"]
+
+        # Build slot_assignments dict: slot_name → image_url
+        slot_assignments = {}
+        descriptions     = {}
+        for item in classifications:
+            idx  = int(item["image"]) - 1
+            slot = item["slot"]
+            desc = item.get("description", "")
+            if 0 <= idx < len(image_urls) and slot not in slot_assignments:
+                slot_assignments[slot] = image_urls[idx]
+                descriptions[slot]     = desc
+
+        # Build ordered result following the chosen style sequence
+        sequence = STYLE_SEQUENCES[assigned_style]
+        ordered  = []
+        for clip_num, slot in enumerate(sequence, 1):
+            img_url = slot_assignments.get(slot, "")
+            # Determine which image number this is (1-based)
+            img_num = None
+            for item in classifications:
+                if item["slot"] == slot:
+                    img_num = item["image"]
+                    break
+            ordered.append({
+                "clip":        clip_num,
+                "slot":        slot,
+                "image_url":   img_url,
+                "image_num":   img_num,
+                "description": descriptions.get(slot, ""),
+            })
+
+        # Persist to DB
         conn = get_db(); cur = conn.cursor()
         cur.execute("""
             UPDATE supplier_offers
@@ -819,46 +921,14 @@ def api_save_offer_slots(offer_id):
              WHERE id = %s
         """, (json.dumps(slot_assignments), assigned_style, offer_id))
         conn.commit(); cur.close(); conn.close()
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route("/admin/api/offers/<offer_id>/camera-prompts", methods=["GET"])
-@api_admin_required
-def api_get_camera_prompts(offer_id):
-    """Return the 6 ordered camera prompts for an offer based on saved slot assignments."""
-    try:
-        conn = get_db()
-        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT slot_assignments, assigned_style FROM supplier_offers WHERE id=%s", (offer_id,))
-        offer = cur.fetchone()
-        cur.close(); conn.close()
-        if not offer:
-            return jsonify({"error": "Offer not found."}), 404
-        assigned_style = int(offer["assigned_style"] or 0)
-        if assigned_style not in STYLE_SEQUENCES:
-            return jsonify({"error": "No style assigned yet — save slot assignments first."}), 400
-        try:
-            slots = json.loads(offer["slot_assignments"] or "{}")
-        except Exception:
-            slots = {}
-        sequence      = STYLE_SEQUENCES[assigned_style]
-        style_prompts = CAMERA_PROMPTS[assigned_style]
-        clips = [
-            {
-                "clip":      i + 1,
-                "slot":      slot,
-                "image_url": slots.get(slot, ""),
-                "prompt":    style_prompts[slot],
-            }
-            for i, slot in enumerate(sequence)
-        ]
         return jsonify({
             "success":    True,
             "style":      assigned_style,
             "style_name": STYLE_NAMES[assigned_style],
-            "clips":      clips,
+            "clips":      ordered,
         })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -960,7 +1030,7 @@ def admin_panel():
             data=data,
             month_names=MONTH_NAMES,
             style_names=STYLE_NAMES,
-            slot_labels=SLOT_LABELS,
+            style_sequences=STYLE_SEQUENCES,
             current_year=date.today().year,
             rolling_window={
                 "prev":    (prev_m, prev_y),

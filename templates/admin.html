@@ -374,7 +374,7 @@
                 {% endif %}
               </div>
 
-              <!-- ── Slot assignment section ── -->
+              <!-- ── Reel slot auto-assignment ── -->
               {% if o.image_urls %}
               <div class="offer-slot-section">
                 <button class="btn-slot-toggle" onclick="toggleSlotPanel('{{ o.id }}')" id="slot-toggle-btn-{{ o.id }}">
@@ -385,24 +385,7 @@
                 </button>
 
                 <div class="slot-panel" id="slot-panel-{{ o.id }}" style="display:none;">
-                  <p class="slot-hint">Assign each image to the correct slot type, pick a style, then save. Use Generate Camera Prompts to get your Freepik/Higgsfield prompts in clip order.</p>
-
-                  <div class="slot-images-grid">
-                    {% for img in o.image_urls %}
-                    <div class="slot-img-item">
-                      <img src="{{ img }}" class="slot-img-thumb" alt="Image {{ loop.index }}" />
-                      <select class="slot-select" data-img-url="{{ img }}" data-offer-id="{{ o.id }}">
-                        <option value="">— Assign slot —</option>
-                        {% for slot_key, slot_label in slot_labels.items() %}
-                        <option value="{{ slot_key }}"
-                          {% if o.slot_assignments.get(slot_key) == img %}selected{% endif %}>
-                          {{ slot_label }}
-                        </option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    {% endfor %}
-                  </div>
+                  <p class="slot-hint">Pick a style, then let AI classify the images and assign each to the correct Freepik slot.</p>
 
                   <div class="slot-style-row">
                     <span class="slot-style-label">Reel style:</span>
@@ -416,16 +399,36 @@
                   </div>
 
                   <div class="slot-actions">
-                    <button class="btn btn-sm btn-slot-save" onclick="saveSlotAssignments('{{ o.id }}')">💾 Save Slots</button>
-                    <button class="btn btn-sm btn-slot-prompts" id="slot-prompts-btn-{{ o.id }}"
-                            onclick="generateCameraPrompts('{{ o.id }}')"
-                            {% if not o.assigned_style %}style="display:none;"{% endif %}>
-                      📷 Generate Camera Prompts
+                    <button class="btn btn-sm btn-slot-prompts" id="slot-assign-btn-{{ o.id }}"
+                            onclick="autoAssignSlots('{{ o.id }}')">
+                      🤖 Auto-Assign Slots
                     </button>
                   </div>
 
-                  <!-- Camera prompts panel — populated by JS -->
-                  <div class="camera-prompts-panel" id="camera-panel-{{ o.id }}" style="display:none;"></div>
+                  <!-- Assignment result — populated by JS -->
+                  <div class="slot-result-panel" id="slot-result-{{ o.id }}"
+                       {% if o.assigned_style %}style=""{% else %}style="display:none;"{% endif %}>
+                    {% if o.assigned_style and o.slot_assignments %}
+                    <div class="slot-result-header">
+                      Style {{ o.assigned_style }} — {{ style_names[o.assigned_style] }}
+                      <span class="slot-result-sub">Drag each image into the matching Freepik slot</span>
+                    </div>
+                    <div class="slot-result-list">
+                      {% for slot in style_sequences[o.assigned_style] %}
+                      {% set img_url = o.slot_assignments.get(slot, '') %}
+                      <div class="slot-result-row">
+                        <span class="slot-result-clip">Slot {{ loop.index }}</span>
+                        <span class="slot-result-slot">{{ slot | replace('_', ' ') }}</span>
+                        {% if img_url %}
+                        <img src="{{ img_url }}" class="slot-result-thumb" alt="" />
+                        {% else %}
+                        <span class="slot-result-unassigned">—</span>
+                        {% endif %}
+                      </div>
+                      {% endfor %}
+                    </div>
+                    {% endif %}
+                  </div>
                 </div>
               </div>
               {% endif %}
