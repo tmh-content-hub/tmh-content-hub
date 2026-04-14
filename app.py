@@ -759,22 +759,37 @@ def api_refine_caption(offer_id):
 
         prompt = f"""You are editing a travel supplier's Facebook post for a UK travel agent to share with their followers.
 
-Rewrite it so it's short, punchy, and engaging — the kind of post someone stops scrolling for. Apply every rule below without exception:
+Rewrite it as a clean, punchy post. Follow every instruction below exactly.
 
-CONTENT RULES:
-- Keep only the highlights that create excitement or show value: destination, duration, standout experiences (max 2–3), key inclusions, price, dates
-- Do NOT reproduce or summarise any detailed itinerary text — if the original lists day-by-day activities or a long list of sights, drop it entirely and pick 1–2 of the most exciting highlights instead
-- Keep all pricing, dates, and deposit information exactly as they appear in the original
-- Do not add any facts that aren't in the original
+── WHAT TO KEEP (reproduce these faithfully, do not cut or alter) ──
+1. The destination name and trip duration
+2. The full inclusions list (flights, meals, excursions count, board basis, hotel rating, supplements etc.) — keep every item, tighten the wording only
+3. Every date and price listed, for every year — reproduce all of them, grouped by year
+4. The deposit amount
 
-FORMAT RULES:
+── WHAT TO CONDENSE ──
+5. Any long itinerary section (day-by-day activities, lists of sights visited) — do NOT reproduce it. Instead, pick the 2 most exciting or unique experiences from the whole list and write them as one short sentence each. These go below the inclusions list.
+
+── FORMAT RULES (no exceptions) ──
 - Remove all Unicode styled characters (𝗕𝗢𝗟𝗗, 𝘪𝘵𝘢𝘭𝘪𝘤, ｆｕｌｌｗｉｄｔｈ, etc.) — plain text only
 - No ALL CAPS — normal sentence case throughout
-- Maximum one emoji per line, at the very start of that line only
-- NO blank lines between items within a list or section — list items run tight, one after the other
-- Use a single blank line only to separate distinct sections (hook, inclusions list, dates, CTA)
-- Structure: one-line hook → inclusions as a tight list → dates/prices → one CTA line
+- Maximum one emoji per line, at the very start of that line only — no emojis mid-sentence
+- NO blank lines between items within the same list or section — items sit tight against each other
+- ONE blank line between separate sections only (hook → inclusions → highlights → dates → deposit → CTA)
 - No hashtags
+
+── STRUCTURE ──
+One-line hook (destination + who it's for)
+
+Inclusions list (tight, no gaps between lines)
+
+1–2 highlight lines from the itinerary
+
+Dates grouped by year (tight list per year, one blank line between years)
+
+Deposit line
+
+One short CTA
 
 Return ONLY the rewritten post — no explanation, no preamble, no surrounding quotes.
 
@@ -785,7 +800,7 @@ Original post:
             "model":       "gpt-4o-mini",
             "messages":    [{"role": "user", "content": prompt}],
             "temperature": 0.3,
-            "max_tokens":  500,
+            "max_tokens":  600,
         }).encode("utf-8")
 
         req = urllib_req.Request(
