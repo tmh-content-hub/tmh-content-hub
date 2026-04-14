@@ -761,35 +761,44 @@ def api_refine_caption(offer_id):
 
 Rewrite it as a clean, punchy post. Follow every instruction below exactly.
 
-── WHAT TO KEEP (reproduce these faithfully, do not cut or alter) ──
-1. The destination name and trip duration
-2. The full inclusions list (flights, meals, excursions count, board basis, hotel rating, supplements etc.) — keep every item, tighten the wording only
-3. Every date and price listed, for every year — reproduce all of them, grouped by year
+── WHAT TO KEEP ──
+1. Destination name and trip duration
+2. The full inclusions list (flights, meals, excursions, board basis, hotel names/grades, luggage, supplements etc.) — keep every item, tighten wording only
+3. Every date and price listed, for every year and every departure airport — reproduce all of them, grouped by year
 4. The deposit amount
 
 ── WHAT TO CONDENSE ──
-5. Any long itinerary section (day-by-day activities, lists of sights visited) — do NOT reproduce it. Instead, pick the 2 most exciting or unique experiences from the whole list and write them as one short sentence each. These go below the inclusions list.
+5. Any long itinerary or sights list — do NOT reproduce it. Pick the 2 most exciting or unique experiences and write each as one short sentence. Place these below the inclusions list.
 
-── FORMAT RULES (no exceptions) ──
-- Remove all Unicode styled characters (𝗕𝗢𝗟𝗗, 𝘪𝘵𝘢𝘭𝘪𝘤, ｆｕｌｌｗｉｄｔｈ, etc.) — plain text only
+── WHAT TO REMOVE ──
+6. Remove ALL contact information without exception: phone numbers, email addresses, website URLs, "PM us", "call us", "book now on…", "contact [company name]", or any instruction to contact the supplier directly. Replace with the generic CTA at the end (see structure below).
+7. Remove any legal/disclaimer small print (ATOL numbers, "subject to availability", "price based on 2 sharing", currency fluctuation disclaimers etc.)
+8. Remove the supplier's company name if it appears as a header (e.g. "Travel Solutions:" or "Newmarket Holidays:" at the very start)
+
+── EMOJIS ──
+9. Every line must start with a relevant emoji. If the original has few or no emojis, add appropriate ones. Use travel-relevant emojis (✈️ flights, 🏨 hotel, 🍽️ meals, 🎟️ excursions, 💰 price, 📅 dates, 💳 deposit, 🌍 destination, 🎈 balloon, 🕌 mosque, etc.)
+10. Maximum one emoji per line, at the very start only — no emojis mid-sentence
+
+── FORMAT RULES ──
+- Remove all Unicode styled characters (𝗕𝗢𝗟𝗗, 𝘪𝘵𝘢𝘭𝘪𝘤, ｆｕｌｌｗｉｄｔｈ) — plain text only
 - No ALL CAPS — normal sentence case throughout
-- Maximum one emoji per line, at the very start of that line only — no emojis mid-sentence
-- NO blank lines between items within the same list or section — items sit tight against each other
-- ONE blank line between separate sections only (hook → inclusions → highlights → dates → deposit → CTA)
+- NO blank lines between items within the same list or section — items sit tight, one per line
+- ONE blank line between separate sections only
 - No hashtags
 
 ── STRUCTURE ──
-One-line hook (destination + who it's for)
+One-line hook (destination + key appeal)
 
-Inclusions list (tight, no gaps between lines)
+Inclusions: (tight list, no gaps)
 
-1–2 highlight lines from the itinerary
+Highlight 1
+Highlight 2
 
-Dates grouped by year (tight list per year, one blank line between years)
+Dates/prices grouped by year or departure point (tight list per group)
 
 Deposit line
 
-One short CTA
+CTA: "Contact us today to find out more and secure your place!"
 
 Return ONLY the rewritten post — no explanation, no preamble, no surrounding quotes.
 
