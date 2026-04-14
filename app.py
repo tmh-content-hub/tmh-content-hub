@@ -739,6 +739,70 @@ Supplier offer:
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/admin/api/offers/<offer_id>/refine-caption", methods=["POST"])
+@api_admin_required
+def api_refine_caption(offer_id):
+    """Use OpenAI to produce a clean, refined version of the supplier's post copy."""
+    if not OPENAI_API_KEY:
+        return jsonify({"error": "OpenAI API key (Render_Claude_Video_Reels) not set."}), 500
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT caption FROM supplier_offers WHERE id=%s", (offer_id,))
+        offer = cur.fetchone()
+        cur.close(); conn.close()
+        if not offer:
+            return jsonify({"error": "Offer not found."}), 404
+        caption = offer["caption"] or ""
+        if not caption:
+            return jsonify({"error": "No post copy to refine."}), 400
+
+        prompt = f"""You are editing a travel supplier's Facebook post for a UK travel agent to share with their followers.
+
+Rewrite the post copy below so it's clean, readable, and professional — but still warm and exciting. Apply these rules strictly:
+
+- Remove all Unicode bold/italic/styled characters (𝗕𝗢𝗟𝗗, 𝘪𝘵𝘢𝘭𝘪𝘤, etc.) — use plain text only
+- Maximum one emoji per line, placed at the very start of that line only
+- No ALL CAPS — convert to normal sentence case or title case
+- Keep every key fact: destination, duration, flights, meals, excursions, pricing, dates, included extras
+- Use clean line breaks: one blank line between sections, no run-on blocks of text
+- Start with a compelling one-line hook, then the key details, then the inclusions as a short bullet list
+- End with one simple call-to-action line (no hashtags)
+- Do not add any facts that aren't in the original
+- Return ONLY the rewritten post copy — no preamble, no explanation, no quotes around it
+
+Original post:
+{caption}"""
+
+        payload = json.dumps({
+            "model":       "gpt-4o-mini",
+            "messages":    [{"role": "user", "content": prompt}],
+            "temperature": 0.4,
+            "max_tokens":  600,
+        }).encode("utf-8")
+
+        req = urllib_req.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=payload, method="POST"
+        )
+        req.add_header("Authorization", f"Bearer {OPENAI_API_KEY}")
+        req.add_header("Content-Type", "application/json")
+
+        with urllib_req.urlopen(req, timeout=20) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+
+        refined = result["choices"][0]["message"]["content"].strip()
+
+        # Save refined caption to DB
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE supplier_offers SET refined_caption=%s WHERE id=%s", (refined, offer_id))
+        conn.commit(); cur.close(); conn.close()
+
+        return jsonify({"success": True, "refined_caption": refined})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/admin/api/offers/<offer_id>/slots", methods=["PUT"])
 @api_admin_required
 def api_save_offer_slots(offer_id):
@@ -871,7 +935,8 @@ def admin_panel():
                 o["slot_assignments"] = json.loads(o.get("slot_assignments") or "{}")
             except Exception:
                 o["slot_assignments"] = {}
-            o["assigned_style"] = int(o.get("assigned_style") or 0)
+            o["assigned_style"]   = int(o.get("assigned_style") or 0)
+            o["refined_caption"]  = o.get("refined_caption") or ""
             all_offers.append(o)
 
         cur.execute("SELECT value FROM admin_settings WHERE key='engagement_folder_url'")
@@ -1291,6 +1356,7 @@ def run_migrations_extra():
         cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS supplier_reels_url TEXT DEFAULT ''")
         cur.execute("ALTER TABLE supplier_offers ADD COLUMN IF NOT EXISTS slot_assignments TEXT DEFAULT '{}'")
         cur.execute("ALTER TABLE supplier_offers ADD COLUMN IF NOT EXISTS assigned_style INTEGER DEFAULT 0")
+        cur.execute("ALTER TABLE supplier_offers ADD COLUMN IF NOT EXISTS refined_caption TEXT DEFAULT ''")
         # Ensure admin_settings has a unique constraint on key so ON CONFLICT works
         cur.execute("""
             DO $$ BEGIN

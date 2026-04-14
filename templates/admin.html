@@ -306,10 +306,29 @@
                 <!-- Caption -->
                 <div class="admin-offer-caption-col">
                   <div class="admin-offer-caption-label">
-                    Post Copy
-                    <button class="btn-copy-caption" onclick="copyCaption('caption-{{ o.id }}')" title="Copy to clipboard">Copy</button>
+                    <span class="caption-label-text" id="caption-label-{{ o.id }}">
+                      {%- if o.refined_caption %}Refined Post Copy{% else %}Post Copy{% endif -%}
+                    </span>
+                    <div style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;">
+                      <button class="btn-copy-caption" onclick="copyCaption('caption-{{ o.id }}')" title="Copy to clipboard">Copy</button>
+                      <button class="btn-refine-caption" id="refine-btn-{{ o.id }}"
+                              onclick="refinePostCopy('{{ o.id }}')">✨ Refine Post</button>
+                      {% if o.refined_caption %}
+                      <button class="btn-toggle-original" id="toggle-orig-btn-{{ o.id }}"
+                              onclick="toggleOriginalCaption('{{ o.id }}')"
+                              data-showing="refined">Show original</button>
+                      {% else %}
+                      <button class="btn-toggle-original" id="toggle-orig-btn-{{ o.id }}"
+                              onclick="toggleOriginalCaption('{{ o.id }}')"
+                              data-showing="original" style="display:none;">Show original</button>
+                      {% endif %}
+                    </div>
                   </div>
-                  <div class="admin-offer-caption" id="caption-{{ o.id }}">{{ o.caption or '—' }}</div>
+                  <div class="admin-offer-caption" id="caption-{{ o.id }}"
+                       data-original="{{ o.caption | e }}"
+                       data-refined="{{ o.refined_caption | e }}">
+                    {{- (o.refined_caption if o.refined_caption else o.caption) or '—' -}}
+                  </div>
 
                   <!-- Generated copy panel — hidden until generated -->
                   <div id="copy-panel-{{ o.id }}" class="generated-copy-panel" style="display:none;">

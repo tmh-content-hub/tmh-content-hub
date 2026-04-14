@@ -897,6 +897,58 @@ function viewCustomerOffers() {
   if (custFilter) { custFilter.value = custId; filterOffers(); }
 }
 
+// ─── Refine post copy ─────────────────────────────────────
+
+async function refinePostCopy(offerId) {
+  const btn       = document.getElementById(`refine-btn-${offerId}`);
+  const captionEl = document.getElementById(`caption-${offerId}`);
+  const labelEl   = document.getElementById(`caption-label-${offerId}`);
+  const toggleBtn = document.getElementById(`toggle-orig-btn-${offerId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Refining…'; }
+  try {
+    const res  = await fetch(`/admin/api/offers/${offerId}/refine-caption`, { method: "POST" });
+    let json;
+    try { json = await res.json(); } catch(_) { json = {}; }
+    if (res.status === 401) { showToast("Session expired — please refresh.", true); return; }
+    if (!json.success) { showToast(json.error || "Refinement failed.", true); return; }
+
+    const refined = json.refined_caption;
+    // Update data attribute and display
+    if (captionEl) {
+      captionEl.dataset.refined = refined;
+      captionEl.textContent     = refined;
+      captionEl.dataset.showing = "refined";  // track state
+    }
+    if (labelEl)   labelEl.textContent = "Refined Post Copy";
+    if (toggleBtn) { toggleBtn.textContent = "Show original"; toggleBtn.dataset.showing = "refined"; toggleBtn.style.display = ""; }
+    if (btn)       btn.textContent = "✨ Re-refine";
+    showToast("Post copy refined ✅");
+  } catch(e) {
+    showToast("Network error — could not refine post.", true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function toggleOriginalCaption(offerId) {
+  const captionEl = document.getElementById(`caption-${offerId}`);
+  const labelEl   = document.getElementById(`caption-label-${offerId}`);
+  const toggleBtn = document.getElementById(`toggle-orig-btn-${offerId}`);
+  if (!captionEl) return;
+  const showing = toggleBtn?.dataset.showing || "refined";
+  if (showing === "refined") {
+    // Switch to original
+    captionEl.textContent = captionEl.dataset.original || "";
+    if (labelEl)   labelEl.textContent = "Original Post Copy";
+    if (toggleBtn) { toggleBtn.textContent = "Show refined"; toggleBtn.dataset.showing = "original"; }
+  } else {
+    // Switch back to refined
+    captionEl.textContent = captionEl.dataset.refined || "";
+    if (labelEl)   labelEl.textContent = "Refined Post Copy";
+    if (toggleBtn) { toggleBtn.textContent = "Show original"; toggleBtn.dataset.showing = "refined"; }
+  }
+}
+
 // ─── Supplier reel slot assignment ───────────────────────
 
 // Camera prompt data (mirrors CAMERA_PROMPTS / STYLE_SEQUENCES in app.py)
