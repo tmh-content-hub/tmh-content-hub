@@ -897,6 +897,222 @@ function viewCustomerOffers() {
   if (custFilter) { custFilter.value = custId; filterOffers(); }
 }
 
+// ─── Supplier reel slot assignment ───────────────────────
+
+// Camera prompt data (mirrors CAMERA_PROMPTS / STYLE_SEQUENCES in app.py)
+const STYLE_SEQUENCES = {
+  1: ["Aerial","CraneUp_Reveal","LateralFly","DollyOut","LateralInterior","LockedZoom"],
+  2: ["Aerial","LockedZoom","LateralFly","LateralInterior","CraneUp_Reveal","DollyOut"],
+  3: ["Aerial","LateralFly","DollyOut","CraneUp_Reveal","LockedZoom","LateralInterior"],
+  4: ["Aerial","DollyOut","LateralInterior","LockedZoom","LateralFly","CraneUp_Reveal"],
+};
+const STYLE_NAMES = { 1: "Cinematic", 2: "Bold", 3: "Bright", 4: "Soft" };
+const CAMERA_PROMPTS = {
+  1: {
+    Aerial:          "Cinematic aerial drone shot pushing forward over resort, smooth confident forward momentum from above, establishing wide view, premium travel atmosphere, natural daylight, modern commercial energy",
+    CraneUp_Reveal:  "Slow crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Natural daylight.",
+    LateralFly:      "Dynamic lateral fly-by with pronounced depth shift and confident cinematic motion, modern commercial travel energy, clean lines, natural daylight",
+    DollyOut:        "Subtle dynamic lateral movement with confident pacing, natural lifestyle atmosphere, modern commercial travel energy",
+    LateralInterior: "Cinematic lateral slide movement with confident but controlled pace, subtle depth shift across interior space, modern travel aesthetic, clean natural daylight",
+    LockedZoom:      "Refined forward cinematic push with clean depth motion and confident energy, premium travel atmosphere, modern commercial style",
+  },
+  2: {
+    Aerial:          "Dynamic aerial drone shot pushing forward, fast energetic momentum from above, high-impact establishing view, natural daylight, bold commercial travel energy",
+    LockedZoom:      "Strong fast forward push with sharp depth motion and bold energy, high-impact travel atmosphere, modern dynamic commercial style",
+    LateralFly:      "High-energy lateral fly-by with sharp depth shift and fast kinetic motion, bold commercial travel energy, clean lines, natural daylight",
+    LateralInterior: "Dynamic lateral slide with fast confident pace, pronounced depth shift across interior space, bold modern travel aesthetic, clean natural daylight",
+    CraneUp_Reveal:  "Fast confident crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Natural daylight.",
+    DollyOut:        "Energetic lateral movement with fast confident pacing, bold lifestyle atmosphere, high-impact commercial travel energy",
+  },
+  3: {
+    Aerial:          "Warm aerial drone shot gently pushing forward, easy light momentum from above, inviting establishing view, warm natural daylight, cheerful lifestyle travel energy",
+    LateralFly:      "Smooth light lateral fly-by with easy depth shift and bright cheerful motion, warm lifestyle travel energy, clean lines, natural daylight",
+    DollyOut:        "Easy gentle lateral movement with relaxed pacing, warm natural lifestyle atmosphere, bright cheerful travel energy",
+    CraneUp_Reveal:  "Warm gentle crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Warm natural daylight.",
+    LockedZoom:      "Gentle warm forward push with light depth motion and inviting energy, bright travel atmosphere, cheerful lifestyle commercial style",
+    LateralInterior: "Light lateral slide with easy natural pace, soft depth shift across interior space, warm inviting travel aesthetic, bright natural daylight",
+  },
+  4: {
+    Aerial:          "Slow dreamy aerial drone drift pushing gently forward, barely perceptible momentum from above, soft establishing view, ethereal travel atmosphere, soft natural daylight, romantic lifestyle energy",
+    DollyOut:        "Very slow gentle lateral drift with peaceful pacing, dreamy romantic atmosphere, soft intimate lifestyle travel energy",
+    LateralInterior: "Slow gentle lateral glide with soft intimate pace, barely perceptible depth shift across interior space, romantic dreamy travel aesthetic, soft natural daylight",
+    LockedZoom:      "Slow soft forward drift with gentle depth movement and dreamy energy, ethereal travel atmosphere, romantic intimate lifestyle style",
+    LateralFly:      "Slow dreamy lateral drift with soft depth shift and gentle floating motion, romantic lifestyle travel energy, clean lines, soft natural daylight",
+    CraneUp_Reveal:  "Very slow gentle crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Soft natural daylight.",
+  },
+};
+
+const SLOT_HINT = {
+  Aerial:          "Aerial / resort overview / pool from above",
+  LateralFly:      "Wide outdoor — pool, beach, garden, landscape",
+  CraneUp_Reveal:  "Building exterior, ruins, landmark, tall structure",
+  LateralInterior: "Grand interior — lobby, restaurant, spa",
+  DollyOut:        "Bedroom, suite, villa, bathroom",
+  LockedZoom:      "Strongest focal point or depth — camera pushes into it",
+};
+
+function toggleSlotPanel(offerId) {
+  const panel  = document.getElementById(`slot-panel-${offerId}`);
+  const btn    = document.getElementById(`slot-toggle-btn-${offerId}`);
+  if (!panel) return;
+  const open = panel.style.display === "none" || panel.style.display === "";
+  panel.style.display = open ? "" : "none";
+  if (btn) btn.classList.toggle("btn-slot-toggle--open", open);
+}
+
+async function saveSlotAssignments(offerId) {
+  // Gather slot dropdowns for this offer
+  const panel = document.getElementById(`slot-panel-${offerId}`);
+  if (!panel) return;
+  const selects = panel.querySelectorAll(`.slot-select[data-offer-id="${offerId}"]`);
+  const slotAssignments = {};
+  let duplicates = [];
+  selects.forEach(sel => {
+    if (!sel.value) return;
+    if (slotAssignments[sel.value]) {
+      duplicates.push(sel.value);
+    } else {
+      slotAssignments[sel.value] = sel.dataset.imgUrl;
+    }
+  });
+  if (duplicates.length) {
+    showToast(`Duplicate slot: ${duplicates[0]} assigned to more than one image.`, true);
+    return;
+  }
+  const styleRadio = panel.querySelector(`input[name="slot-style-${offerId}"]:checked`);
+  const assignedStyle = styleRadio ? parseInt(styleRadio.value) : 0;
+  if (!assignedStyle) {
+    showToast("Please select a reel style before saving.", true);
+    return;
+  }
+  try {
+    const res  = await fetch(`/admin/api/offers/${offerId}/slots`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ slot_assignments: slotAssignments, assigned_style: assignedStyle }),
+    });
+    const json = await res.json();
+    if (res.status === 401) { showToast("Session expired — please refresh.", true); return; }
+    if (!json.success)      { showToast(json.error || "Save failed.", true); return; }
+    // Show the generate button and update toggle label
+    const promptsBtn = document.getElementById(`slot-prompts-btn-${offerId}`);
+    if (promptsBtn) promptsBtn.style.display = "";
+    // Update the badge on the toggle button
+    const toggleBtn = document.getElementById(`slot-toggle-btn-${offerId}`);
+    if (toggleBtn) {
+      let badge = toggleBtn.querySelector(".slot-assigned-badge");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "slot-assigned-badge";
+        toggleBtn.appendChild(badge);
+      }
+      badge.textContent = `Style ${assignedStyle} — ${STYLE_NAMES[assignedStyle]} ✓`;
+    }
+    showToast(`Slots saved — Style ${assignedStyle} ${STYLE_NAMES[assignedStyle]} ✅`);
+  } catch(e) {
+    showToast("Network error — slots not saved.", true);
+  }
+}
+
+function generateCameraPrompts(offerId) {
+  const panel = document.getElementById(`slot-panel-${offerId}`);
+  if (!panel) return;
+  // Read current form state
+  const selects = panel.querySelectorAll(`.slot-select[data-offer-id="${offerId}"]`);
+  const slotAssignments = {};
+  selects.forEach(sel => {
+    if (sel.value) slotAssignments[sel.value] = sel.dataset.imgUrl;
+  });
+  const styleRadio   = panel.querySelector(`input[name="slot-style-${offerId}"]:checked`);
+  const assignedStyle = styleRadio ? parseInt(styleRadio.value) : 0;
+  if (!assignedStyle || !STYLE_SEQUENCES[assignedStyle]) {
+    showToast("Select and save a reel style first.", true);
+    return;
+  }
+  const sequence = STYLE_SEQUENCES[assignedStyle];
+  const prompts  = CAMERA_PROMPTS[assignedStyle];
+  // Build HTML
+  const card    = document.getElementById(`offer-row-${offerId}`);
+  const nameEl  = card?.querySelector('.admin-offer-who strong');
+  const metaEl  = card?.querySelector('.admin-offer-meta');
+  const custName = nameEl ? nameEl.textContent.trim() : 'Customer';
+  const month    = metaEl ? metaEl.textContent.split('·')[1]?.trim() : '';
+  let html = `
+    <div class="camera-prompts-header">
+      <strong>📷 Camera Prompts — Style ${assignedStyle}: ${STYLE_NAMES[assignedStyle]}</strong>
+      <span class="camera-prompts-sub">Freepik / Higgsfield — ${custName}${month ? ', ' + month : ''}</span>
+    </div>
+    <div class="camera-clips-list">`;
+  sequence.forEach((slot, i) => {
+    const imgUrl = slotAssignments[slot] || "";
+    const prompt = prompts[slot] || "";
+    const elemId = `cam-prompt-${offerId}-${i}`;
+    html += `
+      <div class="camera-clip-row">
+        <div class="camera-clip-meta">
+          <span class="camera-clip-num">Clip ${i + 1}</span>
+          <span class="camera-clip-slot">${slot.replace(/_/g, ' ')}</span>
+          ${imgUrl ? `<img src="${escHtml(imgUrl)}" class="camera-clip-thumb" alt="" />` : '<span class="camera-clip-no-img">No image assigned</span>'}
+        </div>
+        <div class="camera-clip-prompt-row">
+          <span id="${elemId}" class="camera-clip-prompt">${escHtml(prompt)}</span>
+          <button class="btn-copy-line" onclick="copyLine('${elemId}')">Copy</button>
+        </div>
+        ${imgUrl ? `<div class="camera-clip-hint">${escHtml(SLOT_HINT[slot] || '')}</div>` : ''}
+      </div>`;
+  });
+  html += `</div>
+    <div class="camera-prompts-actions">
+      <button class="btn-copy-all-copy" onclick="copyAllPrompts('${offerId}')">📋 Copy All Prompts</button>
+      <button class="btn-copy-all-copy btn-download-txt" onclick="downloadPromptsAsTxt('${offerId}')">⬇ Download .txt</button>
+    </div>`;
+  const camPanel = document.getElementById(`camera-panel-${offerId}`);
+  if (camPanel) { camPanel.innerHTML = html; camPanel.style.display = ""; }
+  showToast("Camera prompts generated ✅");
+}
+
+function copyAllPrompts(offerId) {
+  const panel = document.getElementById(`camera-panel-${offerId}`);
+  if (!panel) return;
+  const styleRadio   = document.getElementById(`slot-panel-${offerId}`)?.querySelector(`input[name="slot-style-${offerId}"]:checked`);
+  const assignedStyle = styleRadio ? parseInt(styleRadio.value) : 0;
+  const sequence     = assignedStyle ? STYLE_SEQUENCES[assignedStyle] : [];
+  const lines = [];
+  if (assignedStyle) lines.push(`Style ${assignedStyle}: ${STYLE_NAMES[assignedStyle]}\n`);
+  sequence.forEach((slot, i) => {
+    const el = document.getElementById(`cam-prompt-${offerId}-${i}`);
+    if (el) lines.push(`Clip ${i + 1} — ${slot.replace(/_/g,' ')}:\n${el.textContent.trim()}`);
+  });
+  navigator.clipboard.writeText(lines.join('\n\n'))
+    .then(() => showToast("All prompts copied ✅"))
+    .catch(() => showToast("Copy failed — try copying individually.", true));
+}
+
+function downloadPromptsAsTxt(offerId) {
+  const styleRadio   = document.getElementById(`slot-panel-${offerId}`)?.querySelector(`input[name="slot-style-${offerId}"]:checked`);
+  const assignedStyle = styleRadio ? parseInt(styleRadio.value) : 0;
+  const sequence     = assignedStyle ? STYLE_SEQUENCES[assignedStyle] : [];
+  const card    = document.getElementById(`offer-row-${offerId}`);
+  const nameEl  = card?.querySelector('.admin-offer-who strong');
+  const metaEl  = card?.querySelector('.admin-offer-meta');
+  const custName = (nameEl ? nameEl.textContent.trim().replace(/\s+/g,'-').toLowerCase() : 'customer');
+  const month    = metaEl ? metaEl.textContent.split('·')[1]?.trim().replace(/\s+/g,'-') : '';
+  const lines = [`Style ${assignedStyle}: ${STYLE_NAMES[assignedStyle] || ''}\n`];
+  sequence.forEach((slot, i) => {
+    const el = document.getElementById(`cam-prompt-${offerId}-${i}`);
+    if (el) lines.push(`Clip ${i + 1} — ${slot.replace(/_/g,' ')}:\n${el.textContent.trim()}`);
+  });
+  const filename = month ? `${custName}-${month}-camera-prompts.txt` : `${custName}-camera-prompts.txt`;
+  const blob = new Blob([lines.join('\n\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast(`✅ Prompts saved as ${filename}`);
+}
+
 // ─── Sort destinations table by year then month ──────────
 
 function sortDestinationsTable() {

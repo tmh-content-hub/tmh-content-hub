@@ -355,6 +355,62 @@
                 {% endif %}
               </div>
 
+              <!-- ── Slot assignment section ── -->
+              {% if o.image_urls %}
+              <div class="offer-slot-section">
+                <button class="btn-slot-toggle" onclick="toggleSlotPanel('{{ o.id }}')" id="slot-toggle-btn-{{ o.id }}">
+                  🎬 Assign Reel Slots
+                  {% if o.assigned_style %}
+                  <span class="slot-assigned-badge">Style {{ o.assigned_style }} — {{ style_names[o.assigned_style] }} ✓</span>
+                  {% endif %}
+                </button>
+
+                <div class="slot-panel" id="slot-panel-{{ o.id }}" style="display:none;">
+                  <p class="slot-hint">Assign each image to the correct slot type, pick a style, then save. Use Generate Camera Prompts to get your Freepik/Higgsfield prompts in clip order.</p>
+
+                  <div class="slot-images-grid">
+                    {% for img in o.image_urls %}
+                    <div class="slot-img-item">
+                      <img src="{{ img }}" class="slot-img-thumb" alt="Image {{ loop.index }}" />
+                      <select class="slot-select" data-img-url="{{ img }}" data-offer-id="{{ o.id }}">
+                        <option value="">— Assign slot —</option>
+                        {% for slot_key, slot_label in slot_labels.items() %}
+                        <option value="{{ slot_key }}"
+                          {% if o.slot_assignments.get(slot_key) == img %}selected{% endif %}>
+                          {{ slot_label }}
+                        </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="slot-style-row">
+                    <span class="slot-style-label">Reel style:</span>
+                    {% for n, sname in style_names.items() %}
+                    <label class="slot-style-option">
+                      <input type="radio" name="slot-style-{{ o.id }}" value="{{ n }}"
+                             {% if o.assigned_style == n %}checked{% endif %} />
+                      <span class="slot-style-num">{{ n }}</span> {{ sname }}
+                    </label>
+                    {% endfor %}
+                  </div>
+
+                  <div class="slot-actions">
+                    <button class="btn btn-sm btn-slot-save" onclick="saveSlotAssignments('{{ o.id }}')">💾 Save Slots</button>
+                    <button class="btn btn-sm btn-slot-prompts" id="slot-prompts-btn-{{ o.id }}"
+                            onclick="generateCameraPrompts('{{ o.id }}')"
+                            {% if not o.assigned_style %}style="display:none;"{% endif %}>
+                      📷 Generate Camera Prompts
+                    </button>
+                  </div>
+
+                  <!-- Camera prompts panel — populated by JS -->
+                  <div class="camera-prompts-panel" id="camera-panel-{{ o.id }}" style="display:none;"></div>
+                </div>
+              </div>
+              {% endif %}
+
             </div>
             {% endfor %}
           </div>

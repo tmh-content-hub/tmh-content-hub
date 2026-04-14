@@ -25,6 +25,62 @@ FILE_FIELDS = ["social_media", "blog", "canva_guides", "reels", "promo_assets"]
 
 OFFER_LIMITS = {"core": 0, "pro": 4, "managed": 8}
 
+# ── Supplier reel slot assignment ──────────────────────────────────────────────
+SLOT_LABELS = {
+    "Aerial":          "🛩 Aerial / Drone overview",
+    "LateralFly":      "🌊 Lateral Fly — outdoor wide",
+    "CraneUp_Reveal":  "🏛 Crane Up — exterior/landmark",
+    "LateralInterior": "🛋 Interior — lobby/restaurant/spa",
+    "DollyOut":        "🛏 Dolly — bedroom/suite/villa",
+    "LockedZoom":      "🔭 Zoom — strongest focal point",
+}
+
+STYLE_NAMES = {1: "Cinematic", 2: "Bold", 3: "Bright", 4: "Soft"}
+
+# Clip order per style
+STYLE_SEQUENCES = {
+    1: ["Aerial", "CraneUp_Reveal", "LateralFly", "DollyOut", "LateralInterior", "LockedZoom"],
+    2: ["Aerial", "LockedZoom", "LateralFly", "LateralInterior", "CraneUp_Reveal", "DollyOut"],
+    3: ["Aerial", "LateralFly", "DollyOut", "CraneUp_Reveal", "LockedZoom", "LateralInterior"],
+    4: ["Aerial", "DollyOut", "LateralInterior", "LockedZoom", "LateralFly", "CraneUp_Reveal"],
+}
+
+# Freepik / Higgsfield camera movement prompts per style × slot
+CAMERA_PROMPTS = {
+    1: {  # Cinematic
+        "Aerial":          "Cinematic aerial drone shot pushing forward over resort, smooth confident forward momentum from above, establishing wide view, premium travel atmosphere, natural daylight, modern commercial energy",
+        "CraneUp_Reveal":  "Slow crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Natural daylight.",
+        "LateralFly":      "Dynamic lateral fly-by with pronounced depth shift and confident cinematic motion, modern commercial travel energy, clean lines, natural daylight",
+        "DollyOut":        "Subtle dynamic lateral movement with confident pacing, natural lifestyle atmosphere, modern commercial travel energy",
+        "LateralInterior": "Cinematic lateral slide movement with confident but controlled pace, subtle depth shift across interior space, modern travel aesthetic, clean natural daylight",
+        "LockedZoom":      "Refined forward cinematic push with clean depth motion and confident energy, premium travel atmosphere, modern commercial style",
+    },
+    2: {  # Bold
+        "Aerial":          "Dynamic aerial drone shot pushing forward, fast energetic momentum from above, high-impact establishing view, natural daylight, bold commercial travel energy",
+        "LockedZoom":      "Strong fast forward push with sharp depth motion and bold energy, high-impact travel atmosphere, modern dynamic commercial style",
+        "LateralFly":      "High-energy lateral fly-by with sharp depth shift and fast kinetic motion, bold commercial travel energy, clean lines, natural daylight",
+        "LateralInterior": "Dynamic lateral slide with fast confident pace, pronounced depth shift across interior space, bold modern travel aesthetic, clean natural daylight",
+        "CraneUp_Reveal":  "Fast confident crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Natural daylight.",
+        "DollyOut":        "Energetic lateral movement with fast confident pacing, bold lifestyle atmosphere, high-impact commercial travel energy",
+    },
+    3: {  # Bright
+        "Aerial":          "Warm aerial drone shot gently pushing forward, easy light momentum from above, inviting establishing view, warm natural daylight, cheerful lifestyle travel energy",
+        "LateralFly":      "Smooth light lateral fly-by with easy depth shift and bright cheerful motion, warm lifestyle travel energy, clean lines, natural daylight",
+        "DollyOut":        "Easy gentle lateral movement with relaxed pacing, warm natural lifestyle atmosphere, bright cheerful travel energy",
+        "CraneUp_Reveal":  "Warm gentle crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Warm natural daylight.",
+        "LockedZoom":      "Gentle warm forward push with light depth motion and inviting energy, bright travel atmosphere, cheerful lifestyle commercial style",
+        "LateralInterior": "Light lateral slide with easy natural pace, soft depth shift across interior space, warm inviting travel aesthetic, bright natural daylight",
+    },
+    4: {  # Soft
+        "Aerial":          "Slow dreamy aerial drone drift pushing gently forward, barely perceptible momentum from above, soft establishing view, ethereal travel atmosphere, soft natural daylight, romantic lifestyle energy",
+        "DollyOut":        "Very slow gentle lateral drift with peaceful pacing, dreamy romantic atmosphere, soft intimate lifestyle travel energy",
+        "LateralInterior": "Slow gentle lateral glide with soft intimate pace, barely perceptible depth shift across interior space, romantic dreamy travel aesthetic, soft natural daylight",
+        "LockedZoom":      "Slow soft forward drift with gentle depth movement and dreamy energy, ethereal travel atmosphere, romantic intimate lifestyle style",
+        "LateralFly":      "Slow dreamy lateral drift with soft depth shift and gentle floating motion, romantic lifestyle travel energy, clean lines, soft natural daylight",
+        "CraneUp_Reveal":  "Very slow gentle crane up. Camera movement only. Keep all buildings and background structures rigid and unchanged. Preserve exact geometry and perspective. No distortion, morphing, stretching, or added elements. Soft natural daylight.",
+    },
+}
+
 SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 ALLOWED_IMAGE_TYPES  = {"image/jpeg","image/png"}
@@ -683,6 +739,65 @@ Supplier offer:
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/admin/api/offers/<offer_id>/slots", methods=["PUT"])
+@api_admin_required
+def api_save_offer_slots(offer_id):
+    """Save slot assignments and style choice for an offer."""
+    body             = request.get_json(force=True, silent=True) or {}
+    slot_assignments = body.get("slot_assignments", {})
+    assigned_style   = int(body.get("assigned_style", 0))
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("""
+            UPDATE supplier_offers
+               SET slot_assignments = %s,
+                   assigned_style   = %s
+             WHERE id = %s
+        """, (json.dumps(slot_assignments), assigned_style, offer_id))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/offers/<offer_id>/camera-prompts", methods=["GET"])
+@api_admin_required
+def api_get_camera_prompts(offer_id):
+    """Return the 6 ordered camera prompts for an offer based on saved slot assignments."""
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT slot_assignments, assigned_style FROM supplier_offers WHERE id=%s", (offer_id,))
+        offer = cur.fetchone()
+        cur.close(); conn.close()
+        if not offer:
+            return jsonify({"error": "Offer not found."}), 404
+        assigned_style = int(offer["assigned_style"] or 0)
+        if assigned_style not in STYLE_SEQUENCES:
+            return jsonify({"error": "No style assigned yet — save slot assignments first."}), 400
+        try:
+            slots = json.loads(offer["slot_assignments"] or "{}")
+        except Exception:
+            slots = {}
+        sequence      = STYLE_SEQUENCES[assigned_style]
+        style_prompts = CAMERA_PROMPTS[assigned_style]
+        clips = [
+            {
+                "clip":      i + 1,
+                "slot":      slot,
+                "image_url": slots.get(slot, ""),
+                "prompt":    style_prompts[slot],
+            }
+            for i, slot in enumerate(sequence)
+        ]
+        return jsonify({
+            "success":    True,
+            "style":      assigned_style,
+            "style_name": STYLE_NAMES[assigned_style],
+            "clips":      clips,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ─────────────────────────────────────────────
 # Admin auth
 # ─────────────────────────────────────────────
@@ -749,7 +864,15 @@ def admin_panel():
             JOIN customers c ON o.customer_id = c.id
             ORDER BY o.year DESC, o.month DESC, o.submitted_at DESC
         """)
-        all_offers = [dict(r) for r in cur.fetchall()]
+        all_offers = []
+        for r in cur.fetchall():
+            o = dict(r)
+            try:
+                o["slot_assignments"] = json.loads(o.get("slot_assignments") or "{}")
+            except Exception:
+                o["slot_assignments"] = {}
+            o["assigned_style"] = int(o.get("assigned_style") or 0)
+            all_offers.append(o)
 
         cur.execute("SELECT value FROM admin_settings WHERE key='engagement_folder_url'")
         row = cur.fetchone()
@@ -771,6 +894,8 @@ def admin_panel():
         return render_template("admin.html",
             data=data,
             month_names=MONTH_NAMES,
+            style_names=STYLE_NAMES,
+            slot_labels=SLOT_LABELS,
             current_year=date.today().year,
             rolling_window={
                 "prev":    (prev_m, prev_y),
@@ -1164,6 +1289,8 @@ def run_migrations_extra():
     try:
         conn = get_db(); cur = conn.cursor()
         cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS supplier_reels_url TEXT DEFAULT ''")
+        cur.execute("ALTER TABLE supplier_offers ADD COLUMN IF NOT EXISTS slot_assignments TEXT DEFAULT '{}'")
+        cur.execute("ALTER TABLE supplier_offers ADD COLUMN IF NOT EXISTS assigned_style INTEGER DEFAULT 0")
         # Ensure admin_settings has a unique constraint on key so ON CONFLICT works
         cur.execute("""
             DO $$ BEGIN
