@@ -759,17 +759,24 @@ def api_refine_caption(offer_id):
 
         prompt = f"""You are editing a travel supplier's Facebook post for a UK travel agent to share with their followers.
 
-Rewrite the post copy below so it's clean, readable, and professional — but still warm and exciting. Apply these rules strictly:
+Rewrite it so it's short, punchy, and engaging — the kind of post someone stops scrolling for. Apply every rule below without exception:
 
-- Remove all Unicode bold/italic/styled characters (𝗕𝗢𝗟𝗗, 𝘪𝘵𝘢𝘭𝘪𝘤, etc.) — use plain text only
-- Maximum one emoji per line, placed at the very start of that line only
-- No ALL CAPS — convert to normal sentence case or title case
-- Keep every key fact: destination, duration, flights, meals, excursions, pricing, dates, included extras
-- Use clean line breaks: one blank line between sections, no run-on blocks of text
-- Start with a compelling one-line hook, then the key details, then the inclusions as a short bullet list
-- End with one simple call-to-action line (no hashtags)
+CONTENT RULES:
+- Keep only the highlights that create excitement or show value: destination, duration, standout experiences (max 2–3), key inclusions, price, dates
+- Do NOT reproduce or summarise any detailed itinerary text — if the original lists day-by-day activities or a long list of sights, drop it entirely and pick 1–2 of the most exciting highlights instead
+- Keep all pricing, dates, and deposit information exactly as they appear in the original
 - Do not add any facts that aren't in the original
-- Return ONLY the rewritten post copy — no preamble, no explanation, no quotes around it
+
+FORMAT RULES:
+- Remove all Unicode styled characters (𝗕𝗢𝗟𝗗, 𝘪𝘵𝘢𝘭𝘪𝘤, ｆｕｌｌｗｉｄｔｈ, etc.) — plain text only
+- No ALL CAPS — normal sentence case throughout
+- Maximum one emoji per line, at the very start of that line only
+- NO blank lines between items within a list or section — list items run tight, one after the other
+- Use a single blank line only to separate distinct sections (hook, inclusions list, dates, CTA)
+- Structure: one-line hook → inclusions as a tight list → dates/prices → one CTA line
+- No hashtags
+
+Return ONLY the rewritten post — no explanation, no preamble, no surrounding quotes.
 
 Original post:
 {caption}"""
@@ -777,8 +784,8 @@ Original post:
         payload = json.dumps({
             "model":       "gpt-4o-mini",
             "messages":    [{"role": "user", "content": prompt}],
-            "temperature": 0.4,
-            "max_tokens":  600,
+            "temperature": 0.3,
+            "max_tokens":  500,
         }).encode("utf-8")
 
         req = urllib_req.Request(
