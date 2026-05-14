@@ -155,6 +155,31 @@ function openCustomerDetail(custId) {
     }
   }
 
+  // Destination pick
+  const pickSection = document.getElementById("cust-detail-pick-section");
+  const pickContent = document.getElementById("cust-detail-pick-content");
+  if (pickSection && pickContent) {
+    const pick = (TMH_DATA.all_picks || []).find(p => p.customer_id === custId);
+    if (pick) {
+      pickContent.innerHTML = `
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.6rem .85rem;background:#fff8f0;border:1.5px solid #f5c98a;border-radius:8px;">
+          <span style="font-size:1.1rem;">${escHtml(pick.dest_flag)}</span>
+          <span style="font-weight:600;">${escHtml(pick.dest_name)}</span>
+          <span style="font-size:.8rem;color:#888;">picked ${pick.picked_at ? pick.picked_at.slice(0,10) : ''}</span>
+          <button class="btn btn-sm btn-primary" style="margin-left:auto;"
+                  onclick="openConfirmPickModal('${escHtml(custId)}','${escHtml(pick.library_id)}','${escHtml(pick.customer_name)}','${escHtml(pick.dest_flag)} ${escHtml(pick.dest_name)}')">
+            Confirm + Assign
+          </button>
+          <button class="btn btn-sm btn-danger"
+                  onclick="dismissPick('${escHtml(custId)}','${escHtml(pick.dest_name)}')">
+            Dismiss
+          </button>
+        </div>`;
+    } else {
+      pickContent.innerHTML = '<span style="color:#aaa;font-size:.85rem;">No pending pick from this customer.</span>';
+    }
+  }
+
   document.getElementById("customer-detail-modal").style.display = "flex";
 }
 
@@ -1446,26 +1471,39 @@ async function submitConfirmPick() {
     });
     const json = await res.json();
     if (json.success) {
-      // Remove the customer's pending pick from the DB too
       await fetch(`/admin/api/picks/${customerId}`, {method:"DELETE"});
+      // Remove from in-memory data
+      if (TMH_DATA.all_picks) {
+        TMH_DATA.all_picks = TMH_DATA.all_picks.filter(p => p.customer_id !== customerId);
+      }
       closeConfirmPickModal();
+      // Update the pick section in the customer detail modal
+      const pickContent = document.getElementById("cust-detail-pick-content");
+      if (pickContent) {
+        pickContent.innerHTML = `<span style="color:#2ecc71;font-size:.85rem;font-weight:600;">✓ Assigned to ${TMH_MONTH_NAMES[month-1]} ${year}</span>`;
+      }
       showToast(`Destination assigned for ${TMH_MONTH_NAMES[month-1]} ${year}. Customer will see it live.`);
-      // Remove from picks table in DOM
-      document.getElementById(`pick-row-${customerId}`)?.remove();
-      // Reload so overrides section updates
-      setTimeout(() => window.location.reload(), 1400);
+      setTimeout(() => window.location.reload(), 1800);
     } else { showToast(json.error || "Failed.", true); }
   } catch(err) { showToast("Network error.", true); }
 }
 
 async function dismissPick(customerId, destName) {
-  showConfirm(`Dismiss ${destName} pick for this customer? They'll be able to pick again.`, async () => {
+  showConfirm(`Dismiss this pick? The customer will be able to choose again.`, async () => {
     try {
       const res  = await fetch(`/admin/api/picks/${customerId}`, {method:"DELETE"});
       const json = await res.json();
       if (json.success) {
-        document.getElementById(`pick-row-${customerId}`)?.remove();
-        showToast("Pick dismissed.");
+        // Remove from in-memory data
+        if (TMH_DATA.all_picks) {
+          TMH_DATA.all_picks = TMH_DATA.all_picks.filter(p => p.customer_id !== customerId);
+        }
+        // Update pick section in open modal
+        const pickContent = document.getElementById("cust-detail-pick-content");
+        if (pickContent) {
+          pickContent.innerHTML = '<span style="color:#aaa;font-size:.85rem;">No pending pick from this customer.</span>';
+        }
+        showToast("Pick dismissed — customer can choose again.");
       } else { showToast(json.error || "Failed.", true); }
     } catch(err) { showToast("Network error.", true); }
   });

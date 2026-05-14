@@ -230,40 +230,6 @@
           </div>
         </div>
 
-        <!-- ── Section 3: Customer Picks ── -->
-        <div class="panel-section">
-          <h2 class="panel-title">Customer Picks</h2>
-          <p class="panel-hint">When a customer picks a destination from the available options, it appears here. Use <strong>Confirm + Assign</strong> to set which month they'll receive it.</p>
-
-          {% if data.all_picks %}
-          <div class="admin-table-wrap">
-            <table class="admin-table">
-              <thead><tr><th>Customer</th><th>Their Pick</th><th>Picked</th><th>Actions</th></tr></thead>
-              <tbody id="picks-tbody">
-                {% for pick in data.all_picks %}
-                <tr id="pick-row-{{ pick.customer_id }}">
-                  <td><strong>{{ pick.customer_name }}</strong></td>
-                  <td>{{ pick.dest_flag }} {{ pick.dest_name }}</td>
-                  <td style="color:#888;font-size:.85rem;">{{ pick.picked_at.strftime('%d %b %Y') if pick.picked_at else '—' }}</td>
-                  <td class="actions-cell">
-                    <button class="btn btn-sm btn-primary"
-                            onclick="openConfirmPickModal('{{ pick.customer_id }}','{{ pick.library_id }}','{{ pick.customer_name|e }}','{{ pick.dest_flag }} {{ pick.dest_name|e }}')">
-                      Confirm + Assign
-                    </button>
-                    <button class="btn btn-sm btn-danger"
-                            onclick="dismissPick('{{ pick.customer_id }}','{{ pick.dest_name|e }}')">
-                      Dismiss
-                    </button>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <p style="color:#aaa;">No customer picks yet. Mark destinations as available in the library above so customers can choose.</p>
-          {% endif %}
-        </div>
 
         <!-- ── Section 4: Customer Overrides ── -->
         <div class="panel-section">
@@ -694,6 +660,14 @@
             <button class="btn btn-sm btn-primary" onclick="assignDest()">Assign</button>
             <button class="btn btn-sm btn-ghost-dark" onclick="clearAllAssignments()">Clear all</button>
           </div>
+        </div>
+
+        <!-- Destination Pick -->
+        <div class="cust-detail-item cust-detail-item--full" id="cust-detail-pick-section">
+          <span class="cust-detail-label">Destination Pick
+            <span style="font-weight:400;color:#888;font-size:.8rem;"> — customer's self-selected choice</span>
+          </span>
+          <div id="cust-detail-pick-content" style="margin-top:.5rem;"></div>
         </div>
 
         <!-- Supplier Reels -->
