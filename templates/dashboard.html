@@ -57,6 +57,37 @@
       <h2 class="section-heading">Your Destination Packs</h2>
       <p class="section-hint">You have access to last month, this month, and next month's content.</p>
 
+      <!-- ── Destination choice ── -->
+      {% if customer_pick %}
+      <div class="choice-poll-card choice-poll-card--picked">
+        <div class="choice-poll-header">
+          <span class="choice-poll-icon">✅</span>
+          <div>
+            <div class="choice-poll-title">{{ customer_pick.dest_flag }} {{ customer_pick.dest_name }} — your pick has been noted</div>
+            <div class="choice-poll-sub">We'll confirm and assign your destination shortly.</div>
+          </div>
+        </div>
+      </div>
+      {% elif available_choices %}
+      <div class="choice-poll-card" id="dest-choice-card">
+        <div class="choice-poll-header">
+          <span class="choice-poll-icon">🗺️</span>
+          <div>
+            <div class="choice-poll-title">Choose your next destination</div>
+            <div class="choice-poll-sub">Pick the destination you'd like for your upcoming content pack.</div>
+          </div>
+        </div>
+        <div class="choice-poll-options">
+          {% for opt in available_choices %}
+          <button class="choice-poll-option" onclick="submitDestPick('{{ opt.id }}', '{{ opt.name|e }}', this)">
+            <span class="choice-poll-opt-flag">{{ opt.flag }}</span>
+            <span class="choice-poll-opt-name">{{ opt.name }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       <div class="destinations-list">
         {% for dest in destinations %}
 
@@ -239,6 +270,41 @@
   </footer>
 
   <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+  <script>
+  function submitDestPick(libId, destName, btn) {
+    const card = btn.closest('.choice-poll-card');
+    card.querySelectorAll('.choice-poll-option').forEach(b => b.disabled = true);
+    btn.textContent = '⏳ Saving...';
+    fetch('/api/pick', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({library_id: libId})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        card.innerHTML = `
+          <div class="choice-poll-header">
+            <span class="choice-poll-icon">✅</span>
+            <div>
+              <div class="choice-poll-title">Great choice! Your pick has been noted</div>
+              <div class="choice-poll-sub">We'll confirm and assign your destination shortly.</div>
+            </div>
+          </div>`;
+        card.classList.add('choice-poll-card--picked');
+      } else {
+        card.querySelectorAll('.choice-poll-option').forEach(b => b.disabled = false);
+        btn.textContent = destName;
+        alert(data.error || 'Something went wrong. Please try again.');
+      }
+    })
+    .catch(() => {
+      card.querySelectorAll('.choice-poll-option').forEach(b => b.disabled = false);
+      btn.textContent = destName;
+      alert('Network error. Please try again.');
+    });
+  }
+  </script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

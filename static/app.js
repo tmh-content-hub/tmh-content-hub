@@ -1068,3 +1068,405 @@ function escHtml(str) {
     .replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
+
+// ─────────────────────────────────────────────
+// Destination Library
+// ─────────────────────────────────────────────
+
+async function addLibraryDest(e) {
+  e.preventDefault();
+  const name  = document.getElementById("lib-name").value.trim();
+  const flag  = document.getElementById("lib-flag").value.trim() || "🌍";
+  const notes = document.getElementById("lib-notes").value.trim();
+  if (!name) { showToast("Please enter a destination name.", true); return; }
+  try {
+    const res  = await fetch("/admin/api/library", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({name, flag, notes})
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast(`"${name}" added to library.`);
+      const item = json.item;
+      TMH_DATA.library = TMH_DATA.library || [];
+      TMH_DATA.library.push(item);
+
+      const tbody = document.getElementById("library-tbody");
+      const empty = tbody.querySelector(".empty-cell");
+      if (empty) empty.closest("tr").remove();
+
+      const row = document.createElement("tr");
+      row.id = `lib-row-${item.id}`;
+      row.setAttribute("data-lib-id", item.id);
+      row.innerHTML = libraryRowHtml(item);
+      tbody.appendChild(row);
+
+      document.getElementById("lib-name").value  = "";
+      document.getElementById("lib-flag").value  = "";
+      document.getElementById("lib-notes").value = "";
+
+      // Refresh poll modal checkboxes
+      refreshPollCheckboxes();
+    } else { showToast(json.error || "Failed to add.", true); }
+  } catch(err) { showToast("Network error.", true); }
+}
+
+function libraryRowHtml(item) {
+  const hasLinks = item.social_media || item.blog || item.canva_guides || item.promo_assets;
+  return `
+    <td>${escHtml(item.flag)}</td>
+    <td><strong>${escHtml(item.name)}</strong></td>
+    <td style="color:#888;font-size:.85rem;">${escHtml(item.notes) || '—'}</td>
+    <td style="font-size:.8rem;">${hasLinks
+      ? '<span style="color:var(--green,#2ecc71);">✓ Links added</span>'
+      : '<span style="color:#ccc;">No links yet</span>'}</td>
+    <td class="actions-cell">
+      <button class="btn btn-sm btn-outline" onclick="openEditLibrary('${item.id}','${escHtml(item.name)}','${escHtml(item.flag)}','${escHtml(item.social_media||'')}','${escHtml(item.blog||'')}','${escHtml(item.canva_guides||'')}','${escHtml(item.promo_assets||'')}','${escHtml(item.notes||'')}')">Edit</button>
+      <button class="btn btn-sm btn-primary" onclick="openScheduleModal('${item.id}','${escHtml(item.name)}')">📅 Schedule</button>
+      <button class="btn btn-sm btn-outline" onclick="openAssignCustomerModal('${item.id}','${escHtml(item.name)}')">👤 Assign</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteLibraryDest('${item.id}','${escHtml(item.name)}')">Delete</button>
+    </td>`;
+}
+
+function openEditLibrary(id, name, flag, social, blog, canva, promo, notes) {
+  document.getElementById("edit-lib-id").value     = id;
+  document.getElementById("edit-lib-name").value   = name;
+  document.getElementById("edit-lib-flag").value   = flag;
+  document.getElementById("edit-lib-social").value = social;
+  document.getElementById("edit-lib-blog").value   = blog;
+  document.getElementById("edit-lib-canva").value  = canva;
+  document.getElementById("edit-lib-promo").value  = promo;
+  document.getElementById("edit-lib-notes").value  = notes;
+  document.getElementById("edit-library-modal").style.display = "flex";
+}
+
+function closeEditLibrary() {
+  document.getElementById("edit-library-modal").style.display = "none";
+}
+
+async function saveLibraryEdit() {
+  const id   = document.getElementById("edit-lib-id").value;
+  const name = document.getElementById("edit-lib-name").value.trim();
+  if (!name) { showToast("Name required.", true); return; }
+  const body = {
+    name,
+    flag:         document.getElementById("edit-lib-flag").value.trim() || "🌍",
+    social_media: document.getElementById("edit-lib-social").value.trim(),
+    blog:         document.getElementById("edit-lib-blog").value.trim(),
+    canva_guides: document.getElementById("edit-lib-canva").value.trim(),
+    promo_assets: document.getElementById("edit-lib-promo").value.trim(),
+    notes:        document.getElementById("edit-lib-notes").value.trim(),
+  };
+  try {
+    const res  = await fetch(`/admin/api/library/${id}`, {
+      method: "PUT", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast(`"${name}" updated.`);
+      closeEditLibrary();
+      // Update row in DOM
+      const row = document.getElementById(`lib-row-${id}`);
+      if (row) {
+        const updated = {...body, id};
+        row.innerHTML = libraryRowHtml(updated);
+      }
+      // Update in-memory data
+      if (TMH_DATA.library) {
+        const idx = TMH_DATA.library.findIndex(l => l.id === id);
+        if (idx >= 0) TMH_DATA.library[idx] = {...TMH_DATA.library[idx], ...body};
+      }
+      refreshPollCheckboxes();
+    } else { showToast(json.error || "Failed.", true); }
+  } catch(err) { showToast("Network error.", true); }
+}
+
+async function deleteLibraryDest(id, name) {
+  showConfirm(`Delete "${name}" from the library? This cannot be undone.`, async () => {
+    try {
+      const res  = await fetch(`/admin/api/library/${id}`, {method:"DELETE"});
+      const json = await res.json();
+      if (json.success) {
+        document.getElementById(`lib-row-${id}`)?.remove();
+        if (TMH_DATA.library) TMH_DATA.library = TMH_DATA.library.filter(l => l.id !== id);
+        showToast(`"${name}" removed from library.`);
+        refreshPollCheckboxes();
+      } else { showToast(json.error || "Failed.", true); }
+    } catch(err) { showToast("Network error.", true); }
+  });
+}
+
+// ─────────────────────────────────────────────
+// Schedule library destination to month
+// ─────────────────────────────────────────────
+
+function openScheduleModal(libId, libName) {
+  document.getElementById("schedule-lib-id").value   = libId;
+  document.getElementById("schedule-lib-name").textContent = libName;
+  document.getElementById("schedule-modal").style.display = "flex";
+}
+
+function closeScheduleModal() {
+  document.getElementById("schedule-modal").style.display = "none";
+}
+
+async function submitSchedule() {
+  const libId  = document.getElementById("schedule-lib-id").value;
+  const month  = parseInt(document.getElementById("schedule-month").value);
+  const year   = parseInt(document.getElementById("schedule-year").value);
+  const status = document.getElementById("schedule-status").value;
+  try {
+    const res  = await fetch("/admin/api/schedule", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({library_id: libId, month, year, status})
+    });
+    const json = await res.json();
+    if (json.success) {
+      const d = json.destination;
+      showToast(`${TMH_MONTH_NAMES[month-1]} ${year} scheduled as "${d.name}".`);
+      closeScheduleModal();
+
+      // Update or add row in schedule table
+      const tbody = document.getElementById("destinations-tbody");
+      let existingRow = null;
+      tbody.querySelectorAll("tr").forEach(tr => {
+        if (parseInt(tr.getAttribute("data-month")) === month &&
+            parseInt(tr.getAttribute("data-year"))  === year) {
+          existingRow = tr;
+        }
+      });
+
+      const rowHtml = `
+        <td>${escHtml(d.flag)}</td>
+        <td><strong>${TMH_MONTH_NAMES[month-1]} ${year}</strong></td>
+        <td>${escHtml(d.name)}</td>
+        <td>
+          <select class="status-select" onchange="updateStatus('${d.id}', this.value)">
+            <option value="ready" ${status==='ready'?'selected':''}>Ready</option>
+            <option value="coming_soon" ${status==='coming_soon'?'selected':''}>Coming Soon</option>
+          </select>
+        </td>
+        <td class="actions-cell">
+          <button class="btn btn-sm btn-outline" onclick="openEditLinks('${d.id}')">Edit Links</button>
+          <button class="btn btn-sm btn-archive" onclick="archiveDestination('${d.id}','${escHtml(d.name)}')">Archive</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteDestination('${d.id}','${escHtml(d.name)}')">Delete</button>
+        </td>`;
+
+      if (existingRow) {
+        existingRow.id = `dest-row-${d.id}`;
+        existingRow.setAttribute("data-dest-id", d.id);
+        existingRow.innerHTML = rowHtml;
+      } else {
+        const empty = tbody.querySelector(".empty-cell");
+        if (empty) empty.closest("tr").remove();
+        const row = document.createElement("tr");
+        row.id = `dest-row-${d.id}`;
+        row.setAttribute("data-dest-id", d.id);
+        row.setAttribute("data-month", month);
+        row.setAttribute("data-year", year);
+        row.innerHTML = rowHtml;
+        tbody.appendChild(row);
+        sortDestinationsTable();
+      }
+
+      // Update in-memory data
+      const newDest = {id:d.id, name:d.name, flag:d.flag, month, year, status,
+                       files:{social_media:"",blog:"",canva_guides:"",promo_assets:"",reels:""}};
+      const idx = TMH_DATA.destinations.findIndex(x => x.month === month && x.year === year);
+      if (idx >= 0) TMH_DATA.destinations[idx] = newDest;
+      else TMH_DATA.destinations.push(newDest);
+    } else { showToast(json.error || "Failed.", true); }
+  } catch(err) { showToast("Network error.", true); }
+}
+
+// ─────────────────────────────────────────────
+// Assign destination to customer (override)
+// ─────────────────────────────────────────────
+
+function openAssignCustomerModal(libId, libName) {
+  document.getElementById("assign-lib-id").value = libId;
+  document.getElementById("assign-lib-name").textContent = libName;
+  document.getElementById("assign-customer-modal").style.display = "flex";
+}
+
+function closeAssignCustomerModal() {
+  document.getElementById("assign-customer-modal").style.display = "none";
+}
+
+async function submitAssignCustomer() {
+  const libId      = document.getElementById("assign-lib-id").value;
+  const customerId = document.getElementById("assign-customer-select").value;
+  const month      = parseInt(document.getElementById("assign-month").value);
+  const year       = parseInt(document.getElementById("assign-year").value);
+  try {
+    const res  = await fetch("/admin/api/overrides", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({customer_id: customerId, library_id: libId, month, year, confirmed: true})
+    });
+    const json = await res.json();
+    if (json.success) {
+      const ov = json.override;
+      showToast(`${ov.dest_flag} ${ov.dest_name} assigned to ${ov.customer_name} for ${TMH_MONTH_NAMES[month-1]} ${year}.`);
+      closeAssignCustomerModal();
+      // Add row to overrides table
+      addOverrideRow(ov);
+    } else { showToast(json.error || "Failed.", true); }
+  } catch(err) { showToast("Network error.", true); }
+}
+
+function addOverrideRow(ov) {
+  // Insert into overrides section if it's visible on the page
+  const tables = document.querySelectorAll(".panel-section table");
+  tables.forEach(t => {
+    const headerCells = Array.from(t.querySelectorAll("th")).map(th => th.textContent.trim());
+    if (headerCells.includes("Customer") && headerCells.includes("Month") && headerCells.includes("Destination")) {
+      const noOverrides = t.querySelector(".empty-cell");
+      // Just reload the page to keep things simple for overrides
+    }
+  });
+  // Simplest approach: page reload so overrides section updates correctly
+  showToast("Assignment saved — reloading…");
+  setTimeout(() => window.location.reload(), 1200);
+}
+
+async function confirmOverride(overrideId) {
+  try {
+    const res  = await fetch(`/admin/api/overrides/${overrideId}/confirm`, {method:"PUT"});
+    const json = await res.json();
+    if (json.success) {
+      showToast("Override confirmed.");
+      const row = document.getElementById(`override-row-${overrideId}`);
+      if (row) {
+        // Replace the pending cell with confirmed badge
+        const statusCell = row.cells[3];
+        const actionsCell = row.cells[4];
+        if (statusCell) statusCell.innerHTML = '<span style="color:var(--green,#2ecc71);font-weight:600;">Confirmed</span>';
+        if (actionsCell) {
+          // Remove the confirm button, keep delete
+          const confirmBtn = actionsCell.querySelector('.btn-primary');
+          if (confirmBtn) confirmBtn.remove();
+        }
+      }
+    } else { showToast(json.error || "Failed.", true); }
+  } catch(err) { showToast("Network error.", true); }
+}
+
+async function confirmOverrideFromPick(customerId, libId, month, year) {
+  try {
+    const res  = await fetch("/admin/api/overrides", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({customer_id: customerId, library_id: libId, month, year, confirmed: true})
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast("Destination confirmed for customer.");
+      setTimeout(() => window.location.reload(), 1200);
+    } else { showToast(json.error || "Failed.", true); }
+  } catch(err) { showToast("Network error.", true); }
+}
+
+async function deleteOverride(overrideId) {
+  showConfirm("Remove this destination override for this customer?", async () => {
+    try {
+      const res  = await fetch(`/admin/api/overrides/${overrideId}`, {method:"DELETE"});
+      const json = await res.json();
+      if (json.success) {
+        document.getElementById(`override-row-${overrideId}`)?.remove();
+        showToast("Override removed.");
+      } else { showToast(json.error || "Failed.", true); }
+    } catch(err) { showToast("Network error.", true); }
+  });
+}
+
+// ─────────────────────────────────────────────
+// Available for choice toggle
+// ─────────────────────────────────────────────
+
+async function toggleAvailable(libId, makeAvailable) {
+  try {
+    const res  = await fetch(`/admin/api/library/${libId}/available`, {
+      method: "PUT", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({available: makeAvailable})
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast(makeAvailable
+        ? "Destination is now available for customers to choose."
+        : "Destination removed from customer choices.");
+      // Update the label text next to the checkbox
+      const row = document.getElementById(`lib-row-${libId}`);
+      if (row) {
+        const label = row.querySelector(".available-toggle-label");
+        if (label) label.textContent = makeAvailable ? "Available ✓" : "Off";
+      }
+      // Update in-memory data
+      if (TMH_DATA.library) {
+        const item = TMH_DATA.library.find(l => l.id === libId);
+        if (item) item.available_for_choice = makeAvailable;
+      }
+    } else {
+      showToast(json.error || "Failed.", true);
+      // Revert checkbox
+      const cb = document.querySelector(`.available-checkbox[data-lib-id="${libId}"]`);
+      if (cb) cb.checked = !makeAvailable;
+    }
+  } catch(err) {
+    showToast("Network error.", true);
+    const cb = document.querySelector(`.available-checkbox[data-lib-id="${libId}"]`);
+    if (cb) cb.checked = !makeAvailable;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Confirm customer pick + assign month
+// ─────────────────────────────────────────────
+
+function openConfirmPickModal(customerId, libId, customerName, destLabel) {
+  document.getElementById("confirm-pick-customer-id").value      = customerId;
+  document.getElementById("confirm-pick-library-id").value       = libId;
+  document.getElementById("confirm-pick-customer-name").textContent = customerName;
+  document.getElementById("confirm-pick-dest-name").textContent  = destLabel;
+  document.getElementById("confirm-pick-modal").style.display    = "flex";
+}
+
+function closeConfirmPickModal() {
+  document.getElementById("confirm-pick-modal").style.display = "none";
+}
+
+async function submitConfirmPick() {
+  const customerId = document.getElementById("confirm-pick-customer-id").value;
+  const libId      = document.getElementById("confirm-pick-library-id").value;
+  const month      = parseInt(document.getElementById("confirm-pick-month").value);
+  const year       = parseInt(document.getElementById("confirm-pick-year").value);
+  try {
+    const res  = await fetch("/admin/api/overrides", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({customer_id: customerId, library_id: libId, month, year, confirmed: true})
+    });
+    const json = await res.json();
+    if (json.success) {
+      // Remove the customer's pending pick from the DB too
+      await fetch(`/admin/api/picks/${customerId}`, {method:"DELETE"});
+      closeConfirmPickModal();
+      showToast(`Destination assigned for ${TMH_MONTH_NAMES[month-1]} ${year}. Customer will see it live.`);
+      // Remove from picks table in DOM
+      document.getElementById(`pick-row-${customerId}`)?.remove();
+      // Reload so overrides section updates
+      setTimeout(() => window.location.reload(), 1400);
+    } else { showToast(json.error || "Failed.", true); }
+  } catch(err) { showToast("Network error.", true); }
+}
+
+async function dismissPick(customerId, destName) {
+  showConfirm(`Dismiss ${destName} pick for this customer? They'll be able to pick again.`, async () => {
+    try {
+      const res  = await fetch(`/admin/api/picks/${customerId}`, {method:"DELETE"});
+      const json = await res.json();
+      if (json.success) {
+        document.getElementById(`pick-row-${customerId}`)?.remove();
+        showToast("Pick dismissed.");
+      } else { showToast(json.error || "Failed.", true); }
+    } catch(err) { showToast("Network error.", true); }
+  });
+}

@@ -490,8 +490,68 @@ def dashboard():
         row = cur.fetchone()
         engagement_folder_url = row["value"] if row else ""
 
+        # ── Per-customer destination overrides (library-based, per-month) ──
+        # Only applied when assigned_dest_ids is empty (new system)
+        available_choices = []
+        customer_pick     = None
+        if not assigned_ids:
+            # Fetch confirmed overrides for this customer in rolling window months
+            cur.execute("""
+                SELECT o.month, o.year, o.library_id, o.id as override_id,
+                       l.name, l.flag, l.social_media, l.blog, l.canva_guides, l.promo_assets
+                FROM customer_dest_overrides o
+                JOIN destination_library l ON l.id = o.library_id
+                WHERE o.customer_id=%s AND o.confirmed=TRUE
+            """, (session["user_id"],))
+            overrides = {(r["month"], r["year"]): dict(r) for r in cur.fetchall()}
+
+            # Replace rolling window slots with confirmed overrides where available
+            for i, d in enumerate(visible):
+                slot_key = (d["month"], d["year"])
+                if slot_key in overrides:
+                    ov  = overrides[slot_key]
+                    slot = d.get("window_slot", "current")
+                    visible[i] = {
+                        "id":     f"override_{ov['override_id']}",
+                        "name":   ov["name"],
+                        "flag":   ov["flag"],
+                        "month":  d["month"],
+                        "year":   d["year"],
+                        "status": "ready",
+                        "files": {
+                            "social_media": ov["social_media"] or "",
+                            "blog":         ov["blog"] or "",
+                            "canva_guides": ov["canva_guides"] or "",
+                            "promo_assets": ov["promo_assets"] or "",
+                            "reels":        "",
+                        },
+                        "window_label": "Your Pick",
+                        "window_slot":  slot,
+                        "month_name":   MONTH_NAMES[d["month"] - 1],
+                    }
+
+            # Check if customer has an existing pending pick
+            cur.execute("""
+                SELECT p.library_id, l.name as dest_name, l.flag as dest_flag
+                FROM customer_dest_picks p
+                JOIN destination_library l ON l.id = p.library_id
+                WHERE p.customer_id=%s
+            """, (session["user_id"],))
+            pick_row = cur.fetchone()
+            if pick_row:
+                customer_pick = dict(pick_row)
+
+            # Fetch available destinations for choice (only if no pending pick)
+            if not customer_pick:
+                cur.execute("""
+                    SELECT id, name, flag FROM destination_library
+                    WHERE available_for_choice=TRUE
+                    ORDER BY name
+                """)
+                available_choices = [dict(r) for r in cur.fetchall()]
+
         cur.close(); conn.close()
-        ready = [d for d in visible if d["status"] == "ready"]
+        ready = [d for d in visible if d.get("status") == "ready"]
         return render_template("dashboard.html",
             customer=customer,
             destinations=visible,
@@ -500,6 +560,8 @@ def dashboard():
             is_assigned=is_assigned,
             month_names=MONTH_NAMES,
             engagement_folder_url=engagement_folder_url,
+            available_choices=available_choices,
+            customer_pick=customer_pick,
         )
     except Exception as e:
         return f"<h2>Dashboard error</h2><pre>{e}</pre>", 500
@@ -1044,6 +1106,32 @@ def admin_panel():
         row = cur.fetchone()
         engagement_folder_url = row["value"] if row else ""
 
+        # Destination library
+        cur.execute("SELECT * FROM destination_library ORDER BY name")
+        library_dests = [dict(r) for r in cur.fetchall()]
+
+        # Customer picks (pending — not yet assigned to a month)
+        cur.execute("""
+            SELECT p.*, c.name as customer_name, c.id as customer_id_val,
+                   l.name as dest_name, l.flag as dest_flag
+            FROM customer_dest_picks p
+            JOIN customers c ON c.id = p.customer_id
+            JOIN destination_library l ON l.id = p.library_id
+            ORDER BY p.picked_at DESC
+        """)
+        all_picks = [dict(r) for r in cur.fetchall()]
+
+        # Customer overrides (all)
+        cur.execute("""
+            SELECT o.*, l.name as dest_name, l.flag as dest_flag,
+                   c.name as customer_name
+            FROM customer_dest_overrides o
+            JOIN destination_library l ON l.id = o.library_id
+            JOIN customers c ON c.id = o.customer_id
+            ORDER BY o.year, o.month, c.name
+        """)
+        all_overrides = [dict(r) for r in cur.fetchall()]
+
         cur.close(); conn.close()
 
         active_dests   = [d for d in all_dests if d['status'] != 'archived']
@@ -1056,6 +1144,9 @@ def admin_panel():
             "archived_destinations": archived_dests,
             "all_destinations":      all_dests,
             "offers":                all_offers,
+            "library":               library_dests,
+            "all_picks":             all_picks,
+            "overrides":             all_overrides,
         }
         return render_template("admin.html",
             data=data,
@@ -1482,6 +1573,327 @@ try:
     run_migrations_extra()
 except Exception:
     pass
+
+def run_migrations_library():
+    """Create destination library, overrides, and picks tables."""
+    try:
+        conn = get_db(); cur = conn.cursor()
+        # Destination library — reusable templates with no month attached
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS destination_library (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                flag TEXT DEFAULT '🌍',
+                social_media TEXT DEFAULT '',
+                blog TEXT DEFAULT '',
+                canva_guides TEXT DEFAULT '',
+                promo_assets TEXT DEFAULT '',
+                notes TEXT DEFAULT '',
+                available_for_choice BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        # Add available_for_choice if table already exists without it
+        cur.execute("ALTER TABLE destination_library ADD COLUMN IF NOT EXISTS available_for_choice BOOLEAN DEFAULT FALSE")
+        # Per-customer per-month destination overrides
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS customer_dest_overrides (
+                id SERIAL PRIMARY KEY,
+                customer_id TEXT NOT NULL,
+                month INTEGER NOT NULL,
+                year INTEGER NOT NULL,
+                library_id TEXT NOT NULL,
+                confirmed BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(customer_id, month, year)
+            )
+        """)
+        # Customer destination picks — one active pick per customer at a time
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS customer_dest_picks (
+                id SERIAL PRIMARY KEY,
+                customer_id TEXT NOT NULL UNIQUE,
+                library_id TEXT NOT NULL,
+                picked_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        # Add library_id FK column to destinations (tracks which library entry it came from)
+        cur.execute("ALTER TABLE destinations ADD COLUMN IF NOT EXISTS library_id TEXT DEFAULT NULL")
+        conn.commit(); cur.close(); conn.close()
+    except Exception:
+        pass
+
+try:
+    run_migrations_library()
+except Exception:
+    pass
+
+# ─────────────────────────────────────────────
+# Admin API — Destination Library
+# ─────────────────────────────────────────────
+
+@app.route("/admin/api/library", methods=["GET"])
+@api_admin_required
+def api_list_library():
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM destination_library ORDER BY name")
+        items = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({"success": True, "library": items})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/library", methods=["POST"])
+@api_admin_required
+def api_add_library():
+    body = request.get_json(force=True, silent=True)
+    name = body.get("name","").strip()
+    if not name:
+        return jsonify({"error": "Destination name required."}), 400
+    flag         = body.get("flag","🌍").strip() or "🌍"
+    social_media = body.get("social_media","").strip()
+    blog         = body.get("blog","").strip()
+    canva_guides = body.get("canva_guides","").strip()
+    promo_assets = body.get("promo_assets","").strip()
+    notes        = body.get("notes","").strip()
+    lib_id = f"lib_{int(datetime.utcnow().timestamp() * 1000)}"
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO destination_library
+                (id, name, flag, social_media, blog, canva_guides, promo_assets, notes, available_for_choice)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,FALSE)
+        """, (lib_id, name, flag, social_media, blog, canva_guides, promo_assets, notes))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True, "item": {
+            "id": lib_id, "name": name, "flag": flag,
+            "social_media": social_media, "blog": blog,
+            "canva_guides": canva_guides, "promo_assets": promo_assets,
+            "notes": notes, "available_for_choice": False
+        }})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/library/<lib_id>", methods=["PUT"])
+@api_admin_required
+def api_update_library(lib_id):
+    body = request.get_json(force=True, silent=True)
+    name = body.get("name","").strip()
+    if not name:
+        return jsonify({"error": "Name required."}), 400
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("""
+            UPDATE destination_library SET
+                name=%s, flag=%s, social_media=%s, blog=%s,
+                canva_guides=%s, promo_assets=%s, notes=%s
+            WHERE id=%s
+        """, (name, body.get("flag","🌍"), body.get("social_media",""),
+              body.get("blog",""), body.get("canva_guides",""),
+              body.get("promo_assets",""), body.get("notes",""), lib_id))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/library/<lib_id>/available", methods=["PUT"])
+@api_admin_required
+def api_toggle_library_available(lib_id):
+    """Toggle whether this library destination is offered to customers as a choice."""
+    body      = request.get_json(force=True, silent=True)
+    available = bool(body.get("available", False))
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE destination_library SET available_for_choice=%s WHERE id=%s",
+                    (available, lib_id))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True, "available": available})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/library/<lib_id>", methods=["DELETE"])
+@api_admin_required
+def api_delete_library(lib_id):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM destination_library WHERE id=%s", (lib_id,))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ─────────────────────────────────────────────
+# Admin API — Schedule library dest to a month
+# ─────────────────────────────────────────────
+
+@app.route("/admin/api/schedule", methods=["POST"])
+@api_admin_required
+def api_schedule_library_dest():
+    """Schedule a library destination to a specific month/year slot."""
+    body = request.get_json(force=True, silent=True)
+    lib_id = body.get("library_id","").strip()
+    month  = int(body.get("month", 1))
+    year   = int(body.get("year", date.today().year))
+    status = body.get("status", "coming_soon")
+    if not lib_id:
+        return jsonify({"error": "library_id required."}), 400
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Fetch library entry
+        cur.execute("SELECT * FROM destination_library WHERE id=%s", (lib_id,))
+        lib = cur.fetchone()
+        if not lib:
+            cur.close(); conn.close()
+            return jsonify({"error": "Library destination not found."}), 404
+        # Check if a destination already exists for this month/year
+        cur.execute("SELECT id FROM destinations WHERE month=%s AND year=%s AND status!='archived'",
+                    (month, year))
+        existing = cur.fetchone()
+        if existing:
+            # Update the existing slot
+            dest_id = existing["id"]
+            cur.execute("""
+                UPDATE destinations SET
+                    name=%s, flag=%s, status=%s, library_id=%s,
+                    social_media=%s, blog=%s, canva_guides=%s, promo_assets=%s
+                WHERE id=%s
+            """, (lib["name"], lib["flag"], status, lib_id,
+                  lib["social_media"], lib["blog"], lib["canva_guides"], lib["promo_assets"],
+                  dest_id))
+        else:
+            # Create new slot
+            dest_id = f"dest_{year}_{month:02d}"
+            cur.execute("SELECT id FROM destinations WHERE id=%s", (dest_id,))
+            if cur.fetchone():
+                dest_id = f"dest_{year}_{month:02d}_{lib_id[-6:]}"
+            cur.execute("""
+                INSERT INTO destinations
+                    (id, name, flag, month, year, status, library_id,
+                     social_media, blog, canva_guides, promo_assets, reels)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'')
+            """, (dest_id, lib["name"], lib["flag"], month, year, status, lib_id,
+                  lib["social_media"], lib["blog"], lib["canva_guides"], lib["promo_assets"]))
+        conn.commit()
+        # Return full updated row
+        cur.execute("SELECT * FROM destinations WHERE id=%s", (dest_id,))
+        d = row_to_dest(cur.fetchone())
+        cur.close(); conn.close()
+        return jsonify({"success": True, "destination": {
+            "id": d["id"], "name": d["name"], "flag": d["flag"],
+            "month": d["month"], "year": d["year"], "status": d["status"]
+        }})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ─────────────────────────────────────────────
+# Admin API — Customer destination overrides
+# ─────────────────────────────────────────────
+
+@app.route("/admin/api/overrides", methods=["POST"])
+@api_admin_required
+def api_add_override():
+    """Assign a library destination to a specific customer for a specific month."""
+    body = request.get_json(force=True, silent=True)
+    customer_id = body.get("customer_id","").strip()
+    lib_id      = body.get("library_id","").strip()
+    month       = int(body.get("month", 1))
+    year        = int(body.get("year", date.today().year))
+    confirmed   = bool(body.get("confirmed", True))
+    if not customer_id or not lib_id:
+        return jsonify({"error": "customer_id and library_id required."}), 400
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            INSERT INTO customer_dest_overrides (customer_id, month, year, library_id, confirmed)
+            VALUES (%s,%s,%s,%s,%s)
+            ON CONFLICT (customer_id, month, year)
+            DO UPDATE SET library_id=EXCLUDED.library_id, confirmed=EXCLUDED.confirmed
+        """, (customer_id, month, year, lib_id, confirmed))
+        conn.commit()
+        cur.execute("""
+            SELECT o.*, l.name as dest_name, l.flag as dest_flag,
+                   c.name as customer_name
+            FROM customer_dest_overrides o
+            JOIN destination_library l ON l.id = o.library_id
+            JOIN customers c ON c.id = o.customer_id
+            WHERE o.customer_id=%s AND o.month=%s AND o.year=%s
+        """, (customer_id, month, year))
+        row = dict(cur.fetchone())
+        cur.close(); conn.close()
+        return jsonify({"success": True, "override": row})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/overrides/<int:override_id>", methods=["DELETE"])
+@api_admin_required
+def api_delete_override(override_id):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM customer_dest_overrides WHERE id=%s", (override_id,))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/api/overrides/<int:override_id>/confirm", methods=["PUT"])
+@api_admin_required
+def api_confirm_override(override_id):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE customer_dest_overrides SET confirmed=TRUE WHERE id=%s", (override_id,))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ─────────────────────────────────────────────
+# Customer API — Submit destination pick
+# ─────────────────────────────────────────────
+
+@app.route("/admin/api/picks/<customer_id>", methods=["DELETE"])
+@api_admin_required
+def api_dismiss_pick(customer_id):
+    """Admin dismisses a customer's destination pick without assigning it."""
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM customer_dest_picks WHERE customer_id=%s", (customer_id,))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/pick", methods=["POST"])
+@login_required
+def api_submit_pick():
+    """Customer picks a destination from the available library choices."""
+    body   = request.get_json(force=True, silent=True)
+    lib_id = body.get("library_id","").strip()
+    if not lib_id:
+        return jsonify({"error": "library_id required."}), 400
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Verify chosen destination is available
+        cur.execute("SELECT id, name FROM destination_library WHERE id=%s AND available_for_choice=TRUE",
+                    (lib_id,))
+        lib = cur.fetchone()
+        if not lib:
+            cur.close(); conn.close()
+            return jsonify({"error": "That destination is not available for choice."}), 400
+        # Upsert — one active pick per customer
+        cur.execute("""
+            INSERT INTO customer_dest_picks (customer_id, library_id)
+            VALUES (%s,%s)
+            ON CONFLICT (customer_id) DO UPDATE SET library_id=EXCLUDED.library_id, picked_at=NOW()
+        """, (session["user_id"], lib_id))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"success": True, "dest_name": lib["name"]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ─────────────────────────────────────────────
 # Run
