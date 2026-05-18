@@ -1075,6 +1075,253 @@ function switchTab(name) {
   });
 }
 
+// ─── Auto-flag emoji lookup ───────────────────────────────
+
+const DEST_FLAG_LOOKUP = {
+  // Countries (common names → ISO 3166-1 alpha-2)
+  "afghanistan":"AF","albania":"AL","algeria":"DZ","andorra":"AD","angola":"AO",
+  "antigua":"AG","antigua and barbuda":"AG","argentina":"AR","armenia":"AM",
+  "australia":"AU","austria":"AT","azerbaijan":"AZ","bahamas":"BS","the bahamas":"BS",
+  "bahrain":"BH","bangladesh":"BD","barbados":"BB","belarus":"BY","belgium":"BE",
+  "belize":"BZ","benin":"BJ","bhutan":"BT","bolivia":"BO","bosnia":"BA",
+  "bosnia and herzegovina":"BA","botswana":"BW","brazil":"BR","brunei":"BN",
+  "bulgaria":"BG","burkina faso":"BF","burundi":"BI","cambodia":"KH","cameroon":"CM",
+  "canada":"CA","cape verde":"CV","central african republic":"CF","chad":"TD",
+  "chile":"CL","china":"CN","colombia":"CO","comoros":"KM","congo":"CG",
+  "democratic republic of congo":"CD","dr congo":"CD","costa rica":"CR","croatia":"HR",
+  "cuba":"CU","cyprus":"CY","czech republic":"CZ","czechia":"CZ","denmark":"DK",
+  "djibouti":"DJ","dominica":"DM","dominican republic":"DO","ecuador":"EC","egypt":"EG",
+  "el salvador":"SV","equatorial guinea":"GQ","eritrea":"ER","estonia":"EE",
+  "eswatini":"SZ","swaziland":"SZ","ethiopia":"ET","fiji":"FJ","finland":"FI",
+  "france":"FR","gabon":"GA","gambia":"GM","the gambia":"GM","georgia":"GE",
+  "germany":"DE","ghana":"GH","greece":"GR","grenada":"GD","guatemala":"GT",
+  "guinea":"GN","guinea-bissau":"GW","guyana":"GY","haiti":"HT","honduras":"HN",
+  "hungary":"HU","iceland":"IS","india":"IN","indonesia":"ID","iran":"IR","iraq":"IQ",
+  "ireland":"IE","israel":"IL","italy":"IT","ivory coast":"CI","côte d'ivoire":"CI",
+  "jamaica":"JM","japan":"JP","jordan":"JO","kazakhstan":"KZ","kenya":"KE",
+  "kiribati":"KI","north korea":"KP","south korea":"KR","korea":"KR","kosovo":"XK",
+  "kuwait":"KW","kyrgyzstan":"KG","laos":"LA","latvia":"LV","lebanon":"LB",
+  "lesotho":"LS","liberia":"LR","libya":"LY","liechtenstein":"LI","lithuania":"LT",
+  "luxembourg":"LU","madagascar":"MG","malawi":"MW","malaysia":"MY","maldives":"MV",
+  "mali":"ML","malta":"MT","marshall islands":"MH","mauritania":"MR","mauritius":"MU",
+  "mexico":"MX","micronesia":"FM","moldova":"MD","monaco":"MC","mongolia":"MN",
+  "montenegro":"ME","morocco":"MA","mozambique":"MZ","myanmar":"MM","burma":"MM",
+  "namibia":"NA","nauru":"NR","nepal":"NP","netherlands":"NL","new zealand":"NZ",
+  "nicaragua":"NI","niger":"NE","nigeria":"NG","north macedonia":"MK","norway":"NO",
+  "oman":"OM","pakistan":"PK","palau":"PW","panama":"PA","papua new guinea":"PG",
+  "paraguay":"PY","peru":"PE","philippines":"PH","poland":"PL","portugal":"PT",
+  "qatar":"QA","romania":"RO","russia":"RU","rwanda":"RW","saint kitts":"KN",
+  "saint kitts and nevis":"KN","saint lucia":"LC","saint vincent":"VC",
+  "samoa":"WS","san marino":"SM","sao tome":"ST","saudi arabia":"SA","senegal":"SN",
+  "serbia":"RS","seychelles":"SC","sierra leone":"SL","singapore":"SG","slovakia":"SK",
+  "slovenia":"SI","solomon islands":"SB","somalia":"SO","south africa":"ZA",
+  "south sudan":"SS","spain":"ES","sri lanka":"LK","sudan":"SD","suriname":"SR",
+  "sweden":"SE","switzerland":"CH","syria":"SY","taiwan":"TW","tajikistan":"TJ",
+  "tanzania":"TZ","thailand":"TH","timor-leste":"TL","east timor":"TL","togo":"TG",
+  "tonga":"TO","trinidad":"TT","trinidad and tobago":"TT","tunisia":"TN","turkey":"TR",
+  "türkiye":"TR","turkmenistan":"TM","tuvalu":"TV","uganda":"UG","ukraine":"UA",
+  "united arab emirates":"AE","uae":"AE","united kingdom":"GB","uk":"GB",
+  "united states":"US","usa":"US","united states of america":"US","uruguay":"UY",
+  "uzbekistan":"UZ","vanuatu":"VU","venezuela":"VE","vietnam":"VN","viet nam":"VN",
+  "yemen":"YE","zambia":"ZM","zimbabwe":"ZW",
+
+  // UK / British Isles
+  "england":"GB","scotland":"GB","wales":"GB","northern ireland":"GB",
+
+  // Popular travel regions / cities / islands mapped to their country
+  "bali":"ID","java":"ID","lombok":"ID","komodo":"ID","flores":"ID",
+  "cancun":"MX","tulum":"MX","cabo":"MX","cabo san lucas":"MX","playa del carmen":"MX",
+  "mexico city":"MX","oaxaca":"MX","puerto vallarta":"MX","guadalajara":"MX",
+  "santorini":"GR","mykonos":"GR","athens":"GR","crete":"GR","corfu":"GR",
+  "rhodes":"GR","zakynthos":"GR","zante":"GR","kefalonia":"GR","thessaloniki":"GR",
+  "canary islands":"ES","tenerife":"ES","lanzarote":"ES","gran canaria":"ES",
+  "fuerteventura":"ES","ibiza":"ES","mallorca":"ES","majorca":"ES","menorca":"ES",
+  "barcelona":"ES","madrid":"ES","seville":"ES","granada":"ES","valencia":"ES",
+  "costa del sol":"ES","costa brava":"ES","marbella":"ES",
+  "paris":"FR","nice":"FR","provence":"FR","normandy":"FR","french riviera":"FR",
+  "côte d'azur":"FR","lyon":"FR","bordeaux":"FR","mont saint-michel":"FR",
+  "rome":"IT","venice":"IT","florence":"IT","milan":"IT","naples":"IT",
+  "tuscany":"IT","amalfi coast":"IT","amalfi":"IT","sicily":"IT","sardinia":"IT",
+  "positano":"IT","cinque terre":"IT","capri":"IT","lake como":"IT","pompeii":"IT",
+  "dubai":"AE","abu dhabi":"AE","sharjah":"AE",
+  "maldives":"MV","male":"MV",
+  "prague":"CZ","brno":"CZ",
+  "budapest":"HU",
+  "amsterdam":"NL",
+  "lisbon":"PT","porto":"PT","algarve":"PT","madeira":"PT","azores":"PT",
+  "london":"GB","edinburgh":"GB","dublin":"IE","galway":"IE",
+  "new york":"US","miami":"US","los angeles":"US","san francisco":"US",
+  "hawaii":"US","maui":"US","honolulu":"US","new orleans":"US","las vegas":"US",
+  "orlando":"US","chicago":"US","boston":"US",
+  "toronto":"CA","vancouver":"CA","montreal":"CA","banff":"CA","jasper":"CA",
+  "tokyo":"JP","kyoto":"JP","osaka":"JP","hiroshima":"JP","hokkaido":"JP",
+  "seoul":"KR","busan":"KR","jeju":"KR",
+  "bangkok":"TH","chiang mai":"TH","phuket":"TH","koh samui":"TH","koh tao":"TH",
+  "pattaya":"TH","phi phi islands":"TH",
+  "singapore":"SG",
+  "kuala lumpur":"MY","penang":"MY","langkawi":"MY","borneo":"MY",
+  "ho chi minh city":"VN","saigon":"VN","hanoi":"VN","ha long bay":"VN",
+  "hoi an":"VN","da nang":"VN","sapa":"VN",
+  "siem reap":"KH","angkor":"KH","phnom penh":"KH",
+  "beijing":"CN","shanghai":"CN","hong kong":"HK","macau":"MO",
+  "sydney":"AU","melbourne":"AU","gold coast":"AU","cairns":"AU",
+  "great barrier reef":"AU","uluru":"AU","perth":"AU","byron bay":"AU",
+  "queenstown":"NZ","auckland":"NZ","rotorua":"NZ","fiordland":"NZ",
+  "cape town":"ZA","johannesburg":"ZA","kruger":"ZA","safari":"ZA",
+  "marrakech":"MA","marrakesh":"MA","fes":"MA","fez":"MA","casablanca":"MA",
+  "cairo":"EG","luxor":"EG","aswan":"EG","sharm el sheikh":"EG","hurghada":"EG",
+  "nairobi":"KE","masai mara":"KE","serengeti":"TZ","zanzibar":"TZ","kilimanjaro":"TZ",
+  "dar es salaam":"TZ","arusha":"TZ",
+  "istanbul":"TR","cappadocia":"TR","ankara":"TR","bodrum":"TR","antalya":"TR",
+  "ephesus":"TR","pamukkale":"TR",
+  "reykjavik":"IS","blue lagoon":"IS","northern lights":"IS",
+  "oslo":"NO","bergen":"NO","fjords":"NO","tromsø":"NO",
+  "stockholm":"SE","gothenburg":"SE","malmö":"SE",
+  "copenhagen":"DK","faroe islands":"FO",
+  "helsinki":"FI","lapland":"FI",
+  "vienna":"AT","salzburg":"AT","innsbruck":"AT",
+  "zurich":"CH","geneva":"CH","bern":"CH","interlaken":"CH","lucerne":"CH",
+  "brussels":"BE","bruges":"BE","ghent":"BE",
+  "warsaw":"PL","krakow":"PL","kraków":"PL","gdansk":"PL",
+  "bucharest":"RO","transylvania":"RO","bran":"RO",
+  "moscow":"RU","saint petersburg":"RU","st petersburg":"RU",
+  "riga":"LV","tallinn":"EE","vilnius":"LT",
+  "zagreb":"HR","dubrovnik":"HR","split":"HR","plitvice":"HR","hvar":"HR",
+  "kotor":"ME","podgorica":"ME","budva":"ME",
+  "tirana":"AL","berat":"AL","gjirokastër":"AL",
+  "skopje":"MK","ohrid":"MK",
+  "sofia":"BG","plovdiv":"BG",
+  "belgrade":"RS","novi sad":"RS",
+  "sarajevo":"BA","mostar":"BA",
+  "valletta":"MT","gozo":"MT",
+  "nicosia":"CY","paphos":"CY","limassol":"CY",
+  "lima":"PE","machu picchu":"PE","cusco":"PE","amazon":"PE",
+  "rio de janeiro":"BR","rio":"BR","são paulo":"BR","sao paulo":"BR",
+  "iguazu falls":"AR","iguassu falls":"BR","buenos aires":"AR","patagonia":"AR",
+  "santiago":"CL","atacama":"CL","torres del paine":"CL",
+  "bogota":"CO","cartagena":"CO","medellín":"CO","medellin":"CO",
+  "quito":"EC","galapagos":"EC","galápagos":"EC",
+  "havana":"CU","trinidad cuba":"CU",
+  "san jose":"CR","costa rica":"CR",
+  "panama city":"PA",
+  "belize city":"BZ","belize barrier reef":"BZ",
+  "montego bay":"JM","kingston":"JM","negril":"JM",
+  "bridgetown":"BB","st lucia":"LC","saint lucia":"LC","barbados":"BB",
+  "nassau":"BS","bahamas":"BS","turks and caicos":"TC",
+  "punta cana":"DO","santo domingo":"DO",
+  "san juan":"PR","puerto rico":"PR",
+  "colombo":"LK","galle":"LK",
+  "kathmandu":"NP","everest":"NP","pokhara":"NP",
+  "delhi":"IN","mumbai":"IN","goa":"IN","rajasthan":"IN","agra":"IN",
+  "jaipur":"IN","varanasi":"IN","kerala":"IN","jaisalmer":"IN","udaipur":"IN",
+  "colombo":"LK","galle":"LK","kandy":"LK",
+  "muscat":"OM","nizwa":"OM",
+  "doha":"QA",
+  "amman":"JO","petra":"JO","wadi rum":"JO",
+  "tel aviv":"IL","jerusalem":"IL","dead sea":"IL",
+  "beirut":"LB",
+  "yerevan":"AM","armenia":"AM",
+  "tbilisi":"GE","batumi":"GE",
+  "baku":"AZ",
+  "tashkent":"UZ","samarkand":"UZ",
+  "almaty":"KZ","nur-sultan":"KZ","astana":"KZ",
+  "ulaanbaatar":"MN",
+  "phnom penh":"KH","siem reap":"KH",
+  "vientiane":"LA","luang prabang":"LA",
+  "yangon":"MM","bagan":"MM","inle lake":"MM",
+  "cebu":"PH","palawan":"PH","boracay":"PH","manila":"PH","el nido":"PH",
+  "coron":"PH",
+  "colombo":"LK",
+  "malé":"MV","maldives":"MV",
+  "port louis":"MU","mauritius":"MU",
+  "victoria seychelles":"SC","seychelles":"SC","mahé":"SC","praslin":"SC",
+  "antananarivo":"MG","nosy be":"MG",
+  "lusaka":"ZM","livingstone":"ZM","victoria falls":"ZM",
+  "harare":"ZW","hwange":"ZW","victoria falls zimbabwe":"ZW",
+  "accra":"GH",
+  "lagos":"NG","abuja":"NG",
+  "dakar":"SN",
+  "addis ababa":"ET","lalibela":"ET",
+  "kigali":"RW",
+  "kampala":"UG","bwindi":"UG",
+  "dar es salaam":"TZ",
+  "windhoek":"NA","sossusvlei":"NA","etosha":"NA",
+  "gaborone":"BW","okavango":"BW","chobe":"BW",
+  "victoria falls zambia":"ZM",
+  "tunis":"TN","djerba":"TN","sousse":"TN","hammamet":"TN",
+  "algiers":"DZ",
+  "tripoli":"LY",
+  "khartoum":"SD",
+  "porto novo":"BJ","cotonou":"BJ",
+  "lome":"TG",
+  "abidjan":"CI",
+  "new caledonia":"NC","noumea":"NC",
+  "tahiti":"PF","bora bora":"PF","french polynesia":"PF","moorea":"PF",
+  "cook islands":"CK","rarotonga":"CK",
+  "vanuatu":"VU","port vila":"VU",
+  "tonga":"TO","nuku'alofa":"TO",
+  "samoa":"WS","apia":"WS",
+  "fiji":"FJ","nadi":"FJ","suva":"FJ",
+  "palau":"PW","koror":"PW",
+  "guam":"GU",
+  "northern mariana islands":"MP",
+};
+
+function isoToFlag(iso) {
+  if (!iso || iso.length !== 2) return "";
+  return [...iso.toUpperCase()].map(c =>
+    String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
+  ).join("");
+}
+
+function autoSuggestFlag(nameInputId, flagInputId) {
+  const nameEl = document.getElementById(nameInputId);
+  const flagEl = document.getElementById(flagInputId);
+  if (!nameEl || !flagEl) return;
+
+  // Only fill if flag field is currently empty
+  if (flagEl.value.trim() !== "") return;
+
+  const raw = nameEl.value.trim().toLowerCase();
+  if (!raw) return;
+
+  // 1. Exact match
+  let iso = DEST_FLAG_LOOKUP[raw];
+
+  // 2. Starts-with match (longest key that matches)
+  if (!iso) {
+    let bestKey = "";
+    for (const key of Object.keys(DEST_FLAG_LOOKUP)) {
+      if (raw.startsWith(key) && key.length > bestKey.length) bestKey = key;
+    }
+    if (bestKey) iso = DEST_FLAG_LOOKUP[bestKey];
+  }
+
+  // 3. Contains match (first key found that the raw name contains)
+  if (!iso) {
+    for (const key of Object.keys(DEST_FLAG_LOOKUP)) {
+      if (raw.includes(key)) { iso = DEST_FLAG_LOOKUP[key]; break; }
+    }
+  }
+
+  if (iso) flagEl.value = isoToFlag(iso);
+}
+
+// Attach auto-flag listeners once DOM is ready
+document.addEventListener("DOMContentLoaded", () => {
+  // Add library form
+  const libName = document.getElementById("lib-name");
+  if (libName) {
+    libName.addEventListener("blur", () => autoSuggestFlag("lib-name", "lib-flag"));
+  }
+
+  // Edit library modal — attach on focus-out
+  const editLibName = document.getElementById("edit-lib-name");
+  if (editLibName) {
+    editLibName.addEventListener("blur", () => autoSuggestFlag("edit-lib-name", "edit-lib-flag"));
+  }
+});
+
 // ─── Utility ─────────────────────────────────────────────
 
 function fmtLastLogin(iso) {
