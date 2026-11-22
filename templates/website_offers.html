@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Your website offers — Travel Marketing Hub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .web-offers{max-width:1000px;margin:auto;padding:28px 20px}.web-offers h1{margin:24px 0 12px}
+    .web-offers details{background:white;border:1px solid #ddd;border-radius:12px;margin:20px 0;padding:20px}
+    .web-offers summary{cursor:pointer;font-weight:700}.web-offers label{display:block;margin:16px 0 5px}
+    .web-offers input:not([type=checkbox]),.web-offers textarea,.web-offers select{width:100%;padding:10px;border:1px solid #bbb;border-radius:5px;font:inherit}
+    .web-offers .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.web-offers code{overflow-wrap:anywhere}
+    .web-offers .notice{padding:14px;background:#e7f3ed;margin:16px 0}.web-offers .error{background:#ffeded}
+    .web-offers .checks{display:flex;gap:10px;align-items:flex-start}.web-offers .checks input{margin-top:5px}
+  </style>
+</head>
+<body class="dashboard-page"><main class="web-offers">
+  <a href="{{ url_for('offers') }}">← Supplier offers</a> · <a href="{{ url_for('dashboard') }}">Content Hub</a>
+  <h1>Your website offers</h1>
+  <p>Check the supplier’s details, choose your gallery photos if permitted, and publish. Offers stay live until you withdraw them or their expiry date passes (UK time).</p>
+  <div class="notice">Your <strong>TA Offers Feed</strong> value: <code>{{ slug }}</code><br>
+    Public feed: <a href="{{ url_for('website_offers.feed', slug=slug) }}">View published offers</a></div>
+  <p>Only the website details below are published. Saving a draft also removes that offer from your website. Changes to the reel caption do not alter an already saved website version.</p>
+  {% if saved %}<p class="notice" role="status">Saved. Your website will show the current published offers when visitors next load it.</p>{% endif %}
+  {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+  {% for offer in offers %}
+  <details {% if error %}open{% endif %}>
+    <summary>{{ offer.title or 'Untitled supplier offer' }} — {{ offer.status }}</summary>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="offer_id" value="{{ offer.id }}">
+      {% for key, label in [('title','Website headline'),('description','Website description'),('price_text','Price — leave blank if no price was supplied'),('price_conditions','Supplier price conditions and applicable dates'),('destination','Destination'),('board','Board basis (if known)'),('duration','Duration (if known)'),('supplier_name','Supplier name (if known)')] %}
+      <label for="{{ offer.id }}-{{ key }}">{{ label }}</label>
+      {% if key in ['description','price_conditions'] %}
+      <textarea id="{{ offer.id }}-{{ key }}" name="{{ key }}" rows="{{ 6 if key == 'description' else 3 }}" maxlength="{{ fields[key] }}">{{ offer[key] or '' }}</textarea>
+      {% else %}
+      <input id="{{ offer.id }}-{{ key }}" name="{{ key }}" value="{{ offer[key] or '' }}" maxlength="{{ fields[key] }}">
+      {% endif %}
+      {% endfor %}
+      <p>Prices are displayed with “from”. Keep the supplier’s occupancy basis, departure dates and other conditions. Do not add ABTA or ATOL claims to this card.</p>
+      <label for="{{ offer.id }}-image">Main website image</label>
+      <select name="image_url" id="{{ offer.id }}-image">
+        <option value="">No images — text only (disables the gallery)</option>
+        {% for image in offer.image_urls or [] %}<option value="{{ image }}" {% if offer.image_url == image %}selected{% endif %}>Uploaded image {{ loop.index }}</option>{% endfor %}
+      </select>
+      <fieldset style="border:0;margin-top:18px">
+        <legend>Holiday gallery — use photos already uploaded with this offer</legend>
+        <p>The main image appears first. Tick the other photos to include; untick any you do not want on the public website. Choose a main image above to enable the gallery.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          {% for image in offer.image_urls or [] %}
+          <label style="max-width:140px"><img src="{{ image }}" alt="Uploaded image {{ loop.index }}" loading="lazy" width="120" height="85" style="object-fit:cover">
+            <input type="checkbox" name="gallery_images" value="{{ image }}" {% if image in offer.gallery_images %}checked{% endif %}> Include photo {{ loop.index }}
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <label for="{{ offer.id }}-expiry">Show until the end of this date (UK time)</label>
+      <input type="date" id="{{ offer.id }}-expiry" name="expires_on" value="{{ offer.expires_on or '' }}">
+      <label class="checks"><input type="checkbox" name="rights_confirmed" value="yes"><span>I have checked these offer details and have permission to publish this copy and all selected gallery photos on my public website.</span></label>
+      <div class="actions">
+        <button class="btn btn-primary" name="action" value="publish">Publish to website</button>
+        <button class="btn btn-ghost" name="action" value="draft">Save as draft</button>
+        {% if offer.published %}<button class="btn btn-ghost" name="action" value="withdraw" formnovalidate>Withdraw from website</button>{% endif %}
+      </div>
+    </form>
+  </details>
+  {% else %}<p>No supplier offers yet. <a href="{{ url_for('offers') }}">Submit your first offer</a>, then return here to prepare its website version.</p>{% endfor %}
+</main></body></html>

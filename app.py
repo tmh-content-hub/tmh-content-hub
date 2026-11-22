@@ -1899,6 +1899,9 @@ def api_submit_pick():
 # Run
 # ─────────────────────────────────────────────
 
+from website_offers import register as register_website_offers
+register_website_offers(app, get_db, login_required)
+
 if __name__ == "__main__":
     port  = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG","false").lower() == "true"
