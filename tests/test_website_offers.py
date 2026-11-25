@@ -10,7 +10,7 @@ from functools import wraps
 from pathlib import Path
 from flask import Flask, session, abort
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from website_offers import register, today_uk
+from website_offers import register, today_uk, WEBSITE_SECURITY_SQL
 
 sqlite3.register_converter('UPLOADS', lambda value: json.loads(value.decode()) if value else [])
 sqlite3.register_adapter(date, lambda value: value.isoformat())
@@ -21,6 +21,10 @@ class Cursor:
     def __enter__(self): return self
     def __exit__(self, *args): self.raw.close()
     def execute(self, sql, params=()):
+        if sql == WEBSITE_SECURITY_SQL:
+            # SQLite cannot exercise PostgreSQL roles/RLS. Live verification
+            # of this migration is required separately; route tests follow.
+            return self.raw.execute('SELECT 1')
         if sql.startswith('ALTER TABLE website_offer_publications ADD COLUMN IF NOT EXISTS'):
             columns = [r[1] for r in self.raw.execute('PRAGMA table_info(website_offer_publications)').fetchall()]
             if 'gallery_image_urls' in columns:

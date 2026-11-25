@@ -17,6 +17,24 @@ FIELDS = {'title': 180, 'description': 6000, 'price_text': 120,
           'price_conditions': 2000, 'destination': 180, 'board': 180,
           'duration': 100, 'supplier_name': 180}
 
+# Only the Flask server's database connection may access these tables. Public
+# websites use the filtered Flask feed, never Supabase's direct table API.
+# Keep this in the startup migration to protect existing and new installations.
+WEBSITE_SECURITY_SQL = '''
+ALTER TABLE website_offer_feeds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE website_offer_publications ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE website_offer_feeds, website_offer_publications FROM PUBLIC;
+DO $$
+DECLARE api_role TEXT;
+BEGIN
+    FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = api_role) THEN
+            EXECUTE format('REVOKE ALL ON TABLE website_offer_feeds, website_offer_publications FROM %I', api_role);
+        END IF;
+    END LOOP;
+END $$;
+'''
+
 
 def today_uk():
     return datetime.now(ZoneInfo('Europe/London')).date()
@@ -86,6 +104,9 @@ def register(app, get_db, login_required):
                 published BOOLEAN NOT NULL DEFAULT FALSE,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())''')
             cur.execute("ALTER TABLE website_offer_publications ADD COLUMN IF NOT EXISTS gallery_image_urls TEXT NOT NULL DEFAULT '[]'")
+            # No client policies: deny direct API access, including to drafts.
+            # The owning server role retains access (do not FORCE RLS).
+            cur.execute(WEBSITE_SECURITY_SQL)
             conn.commit()
 
     @bp.route('/website-offers', methods=['GET', 'POST'])
